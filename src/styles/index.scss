@@ -17,6 +17,10 @@
 @use './theme/element/components/select.scss';
 @use './theme/element/components/card.scss';
 @use './theme/element/components/feedback.scss';
+@use './theme/element/components/menu.scss';
 
-// 5. 全局基础样式
+// 5. 布局样式（侧边栏 / 顶栏 / 页签 / 内容区）
+@use './theme/layout.scss';
+
+// 6. 全局基础样式
 @use './base.scss';

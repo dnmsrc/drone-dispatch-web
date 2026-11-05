@@ -61,4 +61,16 @@
   --app-shadow-card: #{$shadow-card};
   --app-shadow-dropdown: #{$shadow-dropdown};
   --app-shadow-dialog: #{$shadow-dialog};
+
+  // 布局（侧边栏 / 顶栏 / 页签）
+  --app-sidebar-width: #{$sidebar-width};
+  --app-sidebar-collapsed-width: #{$sidebar-collapsed-width};
+  --app-sidebar-bg: #{$sidebar-bg};
+  --app-sidebar-logo-bg: #{$sidebar-logo-bg};
+  --app-sidebar-text: #{$sidebar-text};
+  --app-sidebar-hover-bg: #{$sidebar-hover-bg};
+  --app-sidebar-active-text: #{$sidebar-active-text};
+  --app-navbar-height: #{$navbar-height};
+  --app-tags-view-height: #{$tags-view-height};
+  --app-main-bg: #{$app-main-bg};
 }

@@ -1,0 +1,278 @@
+@use './variables.scss' as *;
+
+// ─────────────────────────────────────────────────────────────
+// 布局样式（侧边栏 / 顶栏 / 页签 / 内容区）
+// 结构对应：layout/index.vue + components/{Sidebar,Navbar,TagsView,AppMain}.vue
+// 取值来自原型 drone-dispatch-prototype/admin 的 layout；
+// 颜色、尺寸统一由 theme/variables.scss 控制，组件内不再写配色。
+// ─────────────────────────────────────────────────────────────
+
+// 外壳：左侧栏 + 右侧主区，整屏不滚动（滚动发生在 .app-main 内）
+.app-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+// ── 侧边栏 ──────────────────────────────────────
+.app-sidebar {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: $sidebar-bg;
+  transition: width 0.28s;
+}
+
+.app-sidebar-logo {
+  height: $sidebar-logo-height;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  overflow: hidden;
+  white-space: nowrap;
+  background: $sidebar-logo-bg;
+  cursor: pointer;
+}
+
+.app-sidebar-logo-icon {
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+}
+
+.app-sidebar-logo-text {
+  color: #fff;
+  font-size: $font-size-md;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.app-sidebar-menu {
+  flex: 1;
+  min-height: 0;
+}
+
+// ── 主区 ────────────────────────────────────────
+.app-main-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+// ── 顶栏 ────────────────────────────────────────
+.app-navbar {
+  height: $navbar-height;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 $space-lg;
+  background: $bg-card;
+  box-shadow: $shadow-card;
+  position: relative;
+  z-index: 9;
+}
+
+.app-navbar-left,
+.app-navbar-right {
+  display: flex;
+  align-items: center;
+}
+
+.app-navbar-fold {
+  font-size: 18px;
+  margin-right: $space-lg;
+  color: $navbar-icon-color;
+  cursor: pointer;
+
+  &:hover {
+    color: $color-primary;
+  }
+}
+
+.app-navbar-action {
+  font-size: 18px;
+  margin-right: 18px;
+  color: $navbar-icon-color;
+  cursor: pointer;
+
+  &:hover {
+    color: $color-primary;
+  }
+}
+
+.app-navbar-user {
+  display: flex;
+  align-items: center;
+  color: $text-regular;
+  cursor: pointer;
+}
+
+.app-navbar-user-nick {
+  margin: 0 4px 0 8px;
+  font-size: $font-size-base;
+}
+
+// 小屏：隐藏面包屑与昵称，避免挤压顶栏
+@media (max-width: 576px) {
+  .app-navbar-breadcrumb {
+    display: none;
+  }
+
+  .app-navbar-user-nick {
+    display: none;
+  }
+
+  .app-navbar-action {
+    margin-right: $space-md;
+  }
+
+  .app-navbar {
+    padding: 0 10px;
+  }
+}
+
+// ── 页签（多标签页）─────────────────────────────
+.app-tags-view {
+  height: $tags-view-height;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  background: $bg-card;
+  border-bottom: 1px solid $tags-view-border;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.app-tags-view-scroll {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+}
+
+.app-tag-item {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  line-height: 26px;
+  margin-right: 6px;
+  padding: 0 10px;
+  font-size: $font-size-xs;
+  color: $tags-view-text;
+  background: $bg-card;
+  border: 1px solid $tags-view-border;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &.is-active {
+    color: $color-primary;
+    background: $color-primary-light;
+    border-color: #b3d8ff;
+  }
+}
+
+.app-tag-item-dot {
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: $color-primary;
+}
+
+.app-tag-item-close {
+  width: 14px;
+  height: 14px;
+  margin-left: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: $font-size-xs;
+
+  &:hover {
+    color: #fff;
+    background: $color-primary;
+  }
+}
+
+// 右键菜单（关闭其他）
+.app-tags-context-menu {
+  position: fixed;
+  z-index: 3000;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  font-size: $font-size-sm;
+  color: $text-regular;
+  background: $bg-card;
+  border-radius: $radius-base;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+
+  li {
+    padding: 7px 18px;
+    cursor: pointer;
+
+    &:hover {
+      color: $color-primary;
+      background: $color-primary-light;
+    }
+  }
+}
+
+// ── 内容区 ──────────────────────────────────────
+.app-main {
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: $app-main-bg;
+  position: relative;
+}
+
+// 路由切换过渡（与原型 fade-transform 一致）
+.fade-transform-enter-active,
+.fade-transform-leave-active {
+  transition: all 0.3s;
+}
+
+.fade-transform-enter-from {
+  opacity: 0;
+  transform: translateX(-16px);
+}
+
+.fade-transform-leave-to {
+  opacity: 0;
+  transform: translateX(16px);
+}
+
+// ── 手机端（<768px）：侧边栏改为抽屉 ─────────────
+.app-drawer-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+@media (max-width: 767px) {
+  .app-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 1002;
+    transform: translateX(-100%);
+    transition: transform 0.28s;
+
+    &.is-drawer-open {
+      transform: translateX(0);
+      box-shadow: 4px 0 16px rgba(0, 0, 0, 0.28);
+    }
+  }
+}

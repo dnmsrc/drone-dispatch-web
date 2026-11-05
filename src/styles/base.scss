@@ -40,3 +40,14 @@ a {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+// 页面容器（原型 .page：16px 内边距，小屏 10px）
+.page {
+  padding: theme.$space-lg;
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: theme.$space-md;
+  }
+}

@@ -1,0 +1,41 @@
+@use '../../variables.scss' as *;
+
+// ─────────────────────────────────────────────────────────────
+// Element Plus 菜单重写（侧边栏深色菜单）
+// 原型用 el-menu 的 background-color / text-color 内联属性；
+// 正式版改为覆盖 Element 的 CSS 变量，颜色统一由 theme/variables.scss 控制。
+// 高度 50px、hover #263445、选中底色 + 3px 主色左条，均取自原型。
+// ─────────────────────────────────────────────────────────────
+
+.app-sidebar .el-menu {
+  --el-menu-bg-color: #{$sidebar-bg};
+  --el-menu-text-color: #{$sidebar-text};
+  --el-menu-hover-bg-color: #{$sidebar-hover-bg};
+  --el-menu-active-color: #{$sidebar-active-text};
+  border-right: none;
+}
+
+.app-sidebar .el-menu-item {
+  position: relative;
+  height: 50px;
+  line-height: 50px;
+}
+
+.app-sidebar .el-menu-item:hover {
+  background-color: $sidebar-hover-bg !important;
+}
+
+.app-sidebar .el-menu-item.is-active {
+  background-color: $sidebar-hover-bg !important;
+  color: $sidebar-active-text;
+}
+
+.app-sidebar .el-menu-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: $sidebar-active-text;
+}

@@ -77,3 +77,20 @@ $shadow-dialog: 0 12px 32px 4px rgba(0, 0, 0, 0.04), 0 8px 20px rgba(0, 0, 0, 0.
 // ── 滚动条 ──────────────────────────────────────
 $scrollbar-width: 8px;
 $scrollbar-thumb: #c0c4cc;
+
+// ── 布局（侧边栏 / 顶栏 / 页签）───────────────────
+// 取值来源：drone-dispatch-prototype/admin 的 layout（Layout / Navbar / TagsView）
+$sidebar-width: 210px;
+$sidebar-collapsed-width: 64px;
+$sidebar-bg: #304156;
+$sidebar-logo-bg: #2b2f3a;
+$sidebar-text: #bfcbd9;
+$sidebar-hover-bg: #263445;
+$sidebar-active-text: #409eff;
+$sidebar-logo-height: 56px;
+$navbar-height: 50px;
+$navbar-icon-color: #5a5e66;
+$tags-view-height: 34px;
+$tags-view-border: #d8dce5;
+$tags-view-text: #495060;
+$app-main-bg: #f0f2f5;
