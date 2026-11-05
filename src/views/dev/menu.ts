@@ -47,4 +47,14 @@ export const devMenuGroups: DevMenuGroup[] = [
       { title: '搜索 + 表格', path: '/dev/playground/search/table' },
     ],
   },
+  {
+    title: '弹窗 ProDialog',
+    icon: 'ChatLineSquare',
+    items: [
+      { title: '基础用法', path: '/dev/playground/dialog/basic' },
+      { title: '表单弹窗', path: '/dev/playground/dialog/form' },
+      { title: '自定义内容', path: '/dev/playground/dialog/component' },
+      { title: '进阶用法', path: '/dev/playground/dialog/advanced' },
+    ],
+  },
 ]

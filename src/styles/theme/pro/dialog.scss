@@ -1,0 +1,99 @@
+// ─────────────────────────────────────────────────────────────
+// 命令式弹窗（ProDialog）样式
+// 与 Element 默认弹窗的差异：统一内边距、header/footer 分隔线、内容区滚动上限
+// ─────────────────────────────────────────────────────────────
+.pro-dialog {
+  --el-dialog-padding-primary: 20px;
+
+  .el-dialog__header {
+    margin-right: 0;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--app-border-color-lighter);
+  }
+
+  .el-dialog__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--app-text-primary);
+  }
+
+  .el-dialog__headerbtn {
+    top: 12px;
+    right: 12px;
+  }
+
+  .el-dialog__body {
+    padding: 18px 20px;
+    max-height: min(64vh, 640px);
+    overflow-y: auto;
+  }
+
+  .el-dialog__footer {
+    padding: 12px 20px 16px;
+    border-top: 1px solid var(--app-border-color-lighter);
+  }
+}
+
+.pro-dialog-desc {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--app-text-secondary);
+}
+
+.pro-dialog-text {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--app-text-regular);
+  white-space: pre-line;
+}
+
+.pro-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* 确认框：图标 + 文案横排 */
+.pro-confirm {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+
+  .pro-confirm-icon {
+    display: inline-flex;
+    flex: none;
+    padding-top: 2px;
+    font-size: 22px;
+
+    &.is-warning { color: var(--app-color-warning); }
+    &.is-danger { color: var(--app-color-danger); }
+    &.is-success { color: var(--app-color-success); }
+    &.is-info { color: var(--app-color-info); }
+  }
+
+  .pro-confirm-text {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--app-text-regular);
+    word-break: break-word;
+  }
+}
+
+/* 弹窗内嵌表格 / 表单时去掉底部多余留白 */
+.pro-dialog .pro-form .el-form-item:last-child,
+.pro-dialog .pro-table {
+  margin-bottom: 0;
+}
+
+@media (max-width: 767px) {
+  .pro-dialog {
+    width: calc(100vw - 24px) !important;
+    margin-top: 8vh;
+
+    .el-dialog__body {
+      max-height: 60vh;
+    }
+  }
+}

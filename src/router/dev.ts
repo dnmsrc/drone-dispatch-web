@@ -54,6 +54,26 @@ export const devRoutes: RouteRecordRaw[] = [
         component: () => import('@/views/dev/demos/search-table.vue'),
         meta: { title: '搜索 · 搜索 + 表格' },
       },
+      {
+        path: 'dialog/basic',
+        component: () => import('@/views/dev/demos/dialog-basic.vue'),
+        meta: { title: '弹窗 · 基础用法' },
+      },
+      {
+        path: 'dialog/form',
+        component: () => import('@/views/dev/demos/dialog-form.vue'),
+        meta: { title: '弹窗 · 表单弹窗' },
+      },
+      {
+        path: 'dialog/component',
+        component: () => import('@/views/dev/demos/dialog-component.vue'),
+        meta: { title: '弹窗 · 自定义内容' },
+      },
+      {
+        path: 'dialog/advanced',
+        component: () => import('@/views/dev/demos/dialog-advanced.vue'),
+        meta: { title: '弹窗 · 进阶用法' },
+      },
     ],
   },
 ]

@@ -41,7 +41,7 @@ drone-dispatch-web/
     ├── router/         # index.ts 业务路由（menuRoutes 与侧边栏同源）；dev.ts 测试场路由（仅开发环境）
     ├── layout/         # 布局框架：侧边栏 / 顶栏 / 多页签 / 内容区
     ├── components/
-    │   ├── pro/        # 配置式公共组件（ProForm / ProTable / ProSearch）★
+    │   ├── pro/        # 配置式公共组件（ProForm / ProTable / ProSearch / dialog 命令式弹窗）★
     │   └── PagePlaceholder.vue
     ├── stores/         # pinia（tags-view 多页签状态）
     ├── config/         # 品牌常量（静态，后续改为接口拉取）
@@ -112,11 +112,12 @@ Element 的变量定制必须早于其样式生效，控件与组件重写必须
 
 `src/components/pro/` 里是三个配置驱动组件：**外部只传配置数据，内部负责布局与渲染**，业务页面不再手写
 `el-table-column` / `el-form-item` 堆叠。控件用字符串名声明（`control: 'input'` / `'select'` …），
-由 `ProField` 映射到对应 Element 控件。
+由 `ProField` 映射到对应 Element 控件。另外提供一组**命令式弹窗**（`openDialog` / `confirmDialog` /
+`openFormDialog`），在 script 里调用、`await` 结果，详见「命令式弹窗 ProDialog」。
 
 ```ts
-import { ProForm, ProTable, ProSearch } from '@/components/pro'
-import type { FormFieldConfig, TableColumn, TableActions } from '@/components/pro'
+import { ProForm, ProTable, ProSearch, openDialog, confirmDialog, openFormDialog } from '@/components/pro'
+import type { FormFieldConfig, TableColumn, TableActions, DialogOptions } from '@/components/pro'
 ```
 
 ### 设计约定
@@ -314,6 +315,96 @@ const actions: TableActions = {
 **TablePagination**：`page` / `size` / `total` 必填，另有 `pageSizes`（默认 `[10, 20, 50, 100]`）、`layout`、
 `background`（默认 true）、`small`。
 
+### 命令式弹窗 ProDialog
+
+不挂组件、不在 `data`/`ref` 里维护 `visible`：在 script 里直接调用，`await` 拿到结果后继续写后面的逻辑。
+
+```ts
+import { openDialog, confirmDialog, openFormDialog } from '@/components/pro'
+
+// ① 确认框：await 得到布尔值
+const ok = await confirmDialog({
+  title: '删除订单',
+  content: '删除后订单数据不可恢复，确认删除？',
+  type: 'danger', // warning / danger / info / success
+  okText: '删除',
+})
+if (!ok) return
+await removeOrder(id)
+
+// ② 通用弹窗：确定返回 okValue（默认 true），取消 / 关闭 / ESC 返回 null
+const result = await openDialog<boolean>({ title: '提示', content: '…' })
+
+// ③ 表单弹窗：字段配置与 ProForm 完全一致，确定时自动校验
+const data = await openFormDialog<OrderForm>({
+  title: '新增订单',
+  fields: [
+    { prop: 'id', label: '订单号', control: 'input', required: true },
+    { prop: 'venue', label: '表演场地', control: 'select', options: VENUE_OPTIONS },
+  ],
+  model: { drones: 120 }, // 初始值
+  beforeOk: async () => {
+    // 确定前钩子：返回 Promise 时按钮自动 loading；返回 false 保持弹窗打开
+    return true
+  },
+})
+if (!data) return
+await createOrder(data)
+
+// ④ 内容组件：任意组件都能放进弹窗，组件里用 useDialogContext().close(row) 回传
+const picked = await openDialog<MockOrder>({
+  title: '选择订单',
+  component: OrderPicker,
+  width: 840,
+  showFooter: false, // 底部按钮由内容组件自己提供
+})
+```
+
+**结果约定**
+
+| 关闭方式 | Promise 结果 | 回调（与 Promise 并存，两者都会触发） |
+|---|---|---|
+| 点确定 | `okValue`（默认 `true`）/ 表单数据 / `dialog.close(value)` 传入值 | `onOk(value)` |
+| 点取消 | `null` | `onCancel()` |
+| 右上角 X / 遮罩 / ESC | `null` | `onClose()`（不传时回退 `onCancel`） |
+
+**三个命令**：`openDialog(options)`、`confirmDialog(string | options)`、`openFormDialog(options)`，全部返回 Promise。
+
+**DialogCommonOptions**
+
+| 字段 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `title` / `description` | `string` | — | 标题 / 标题下方灰色说明 |
+| `width` | `string \| number` | `480` | 数字按 px（表单弹窗 `640`） |
+| `fullscreen` / `draggable` / `alignCenter` | `boolean` | `false / false / true` | 全屏 / 可拖拽 / 垂直居中 |
+| `closeOnClickModal` | `boolean` | `false` | 点遮罩关闭（默认关，防误触丢输入） |
+| `closeOnPressEscape` | `boolean` | `true` | ESC 关闭 |
+| `showClose` / `showFooter` | `boolean` | `true` | 右上角关闭按钮 / 底部按钮区 |
+| `okText` / `cancelText` / `okType` | `string` | `确定 / 取消 / primary` | 按钮文案与类型 |
+| `okButtonProps` / `cancelButtonProps` | `object` | — | 透传给按钮（如 `{ disabled: true }`） |
+| `beforeOk` | `() => boolean \| Promise<boolean>` | — | 确定前钩子，`false` 或抛异常都不关闭 |
+| `onOk` / `onCancel` / `onClose` | `function` | — | 回调风格，不 await 也能用 |
+| `zIndex` | `number` | 自动 | 不传时跟随 Element 全局递增，嵌套自动叠高 |
+
+**内容来源**（优先级从高到低）：`component`（内容组件）、`fields`（配置式表单）、`render`（渲染函数）、`content`（文本 / VNode）。
+
+**内容组件契约**：组件不需要知道自己是弹窗，两种方式拿到同一个上下文对象：
+
+```vue
+<!-- OrderPicker.vue -->
+<script setup lang="ts">
+import { useDialogContext } from '@/components/pro'
+const dialog = useDialogContext<MockOrder>()
+function pick(row: MockOrder) {
+  dialog?.close(row) // 关闭并回传结果
+}
+</script>
+```
+
+也可以声明 `props: ['dialog']`（openDialog 会把同一个对象作为 `dialog` prop 注入），或 `emit('close', value)` / `emit('cancel')`。
+
+**实现要点**：每次打开新建一个容器挂到 `body`，用 `render()` 挂载；关闭动画播完后卸载并移除 DOM（另有 400ms 兜底）。`main.ts` 通过 `setDialogAppContext(app._context)` 注入应用上下文，所以弹窗内容组件里可以用全局注册的图标/组件。样式在 `src/styles/theme/pro/dialog.scss`。
+
 ### 控件名对照表（`control`）
 
 | 分类 | 控件名 |
@@ -331,6 +422,7 @@ const actions: TableActions = {
 - `src/styles/theme/pro/form.scss` —— 栅格表单间距、行内表单标签
 - `src/styles/theme/pro/table.scss` —— 分页右对齐、表头字重字号、`.cell-sub` 次级文字、`.amount-text` 金额色
 - `src/styles/theme/pro/search.scss` —— 搜索卡片底部留白、字段默认宽度、小屏撑满
+- `src/styles/theme/pro/dialog.scss` —— 弹窗内边距 / header 与 footer 分隔线 / 确认框图标 / 小屏宽度
 - `src/styles/theme/pro/playground.scss` —— 组件测试场外壳与演示区块
 
 新增公共组件样式：在该目录加文件，并在 `theme/pro/index.scss` 里 `@use`。
@@ -383,7 +475,8 @@ Sidebar 直接遍历该数组生成菜单 —— **新增页面 = 在 menuRoutes
 
 - 入口：<http://localhost:8091/dev/playground>（默认进入「表单 · 基础用法」）
 - 菜单：左侧沿用后台同款深色菜单，按组件分组 —— 表单 ProForm（基础用法 / 栅格布局 / 校验规则 / 控件总览）、
-  表格 ProTable（基础表格 / 列与操作）、搜索 ProSearch（基础搜索 / 搜索 + 表格）
+  表格 ProTable（基础表格 / 列与操作）、搜索 ProSearch（基础搜索 / 搜索 + 表格）、
+  弹窗 ProDialog（基础用法 / 表单弹窗 / 自定义内容 / 进阶用法）
 - 每个演示页 = 若干「演示区块」：标题 + 说明 + 效果 + 可展开的**配置代码**，方便直接对照写法
 
 ### 只在开发环境存在
@@ -396,6 +489,7 @@ Sidebar 直接遍历该数组生成菜单 —— **新增页面 = 在 menuRoutes
 
 已验证：`npm run build` 后对 `dist/` 全量搜索「组件测试场 / dev/playground / ProSearch」均无命中；
 生产预览下访问 `/dev/playground` 会落到 `/:pathMatch(.*)*` 重定向回 `/index`（标题「首页 - 星穹派单管理后台」）。
+（说明：`src/components/pro/dialog` 是生产要用的公共组件，会正常打进产物；只有测试场与演示页被剔除。）
 
 ### 新增一个演示页
 
@@ -415,6 +509,8 @@ Sidebar 直接遍历该数组生成菜单 —— **新增页面 = 在 menuRoutes
   新增能力先加类型再实现，不在业务页面里绕过类型。
 - **业务页面不再手写表格/表单结构**：新页面一律用 `ProTable` / `ProForm` / `ProSearch`；
   例外是个性化极强的页面（如看板图表），也优先复用主题变量与 Pro 组件。
+- **弹窗一律命令式**：不写 `<xxx-dialog v-model:visible>` + `visible` ref，改调 `openDialog` /
+  `openFormDialog` / `confirmDialog`，把「打开 → 等结果 → 继续执行」放在同一段代码里。
 - **端口**：固定 8091，`strictPort: true`（端口被占用时报错而不是静默换端口）。
   `drone-dispatch-web` 与原型 `admin`（8080）可同时启动。
 - **接口代理**：暂未配置 `/api` 代理 —— 后端 `drone-dispatch-server` 技术栈与接口契约待定，

@@ -10,6 +10,22 @@ export { default as ProField } from './ProField.vue'
 export { default as ProTable } from './ProTable.vue'
 export { default as ProSearch } from './ProSearch.vue'
 
+// 命令式弹窗（script 里调用，不需要在 template 中挂组件）
+export {
+  openDialog,
+  confirmDialog,
+  openFormDialog,
+  useDialogContext,
+  setDialogAppContext,
+} from './dialog'
+export type {
+  DialogAction,
+  DialogContext,
+  DialogOptions,
+  FormDialogOptions,
+  ConfirmDialogOptions,
+} from './dialog'
+
 export { CONTROL_TYPES } from './types'
 export type {
   ControlType,

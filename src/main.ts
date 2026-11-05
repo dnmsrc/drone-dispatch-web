@@ -6,6 +6,7 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 
 import App from './App.vue'
 import router from './router'
+import { setDialogAppContext } from './components/pro/dialog'
 // 全局样式入口：主题包 + Element Plus 全量样式（SCSS 定制版）+ 控件重写 + 布局 + 公共组件
 import './styles/index.scss'
 
@@ -16,6 +17,10 @@ import './styles/index.scss'
  */
 async function bootstrap() {
   const app = createApp(App)
+
+  // 命令式弹窗通过 render() 挂载在 app 之外，显式注入应用上下文，
+  // 弹窗内容组件才能使用全局注册的组件（图标等）与全局配置
+  setDialogAppContext(app._context)
 
   app.use(createPinia())
 
