@@ -77,7 +77,7 @@ export const devRoutes: RouteRecordRaw[] = [
       {
         path: 'dialog/wrapper',
         component: () => import('@/views/dev/demos/dialog-wrapper.vue'),
-        meta: { title: '弹窗 · 架构与句柄' },
+        meta: { title: '弹窗 · 架构与职责' },
       },
     ],
   },

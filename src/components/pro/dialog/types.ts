@@ -1,12 +1,13 @@
 // ─────────────────────────────────────────────────────────────
 // 弹窗（ProDialog）类型契约 —— 包裹器架构
 //
-// 架构分三层：
+// 架构分三层，职责严格分开：
 //
-//   ① 包裹器（框架提供）：定义弹窗的基本动作 open / close / destroy，负责挂载到 body
+//   ① 包裹器（框架提供）：定义弹窗的"机制" —— 挂载到 body、注入上下文、
+//      收集结果、卸载。业务从不直接碰它。
 //   ② 业务弹窗组件（业务正常写）：自己写 <el-dialog>，自己管 visible，
-//      也可以 defineExpose({ open, close }) 覆盖包裹器的默认动作
-//   ③ 平行位置的 ts 配置文件：用包裹器把组件包起来并导出
+//      自己决定什么时候关；也可以 defineExpose({ open, close }) 覆盖默认动作。
+//   ③ 平行位置的 ts 配置文件：用包裹器把组件包起来并导出。
 //
 //   ── 业务组件 OrderDialog.vue ──────────────────────────────
 //   const { visible, params, close } = useDialog<Params, Data>()
@@ -15,9 +16,9 @@
 //   ── 平行位置 OrderDialog.dialog.ts ────────────────────────
 //   export const orderDialog = wrapDialog(OrderDialog, { name: 'order' })
 //
-//   ── 业务代码里 ────────────────────────────────────────────
+//   ── 业务代码里（只调 open，等结果，不管生命周期）──────────
 //   import { orderDialog } from './OrderDialog.dialog'
-//   const data = await orderDialog.open(params)
+//   const data = await orderDialog.open(params)   // 关掉时自然拿到结果
 // ─────────────────────────────────────────────────────────────
 import type { Component } from 'vue'
 import type { Ref } from 'vue'
@@ -29,9 +30,11 @@ export type DialogAction = 'ok' | 'cancel' | 'close'
 /**
  * 包裹器注入给弹窗组件的运行时上下文（组件里用 useDialog() 获取）。
  * 组件拿到它是为了三件事：
- *   - visible：绑给 <el-dialog v-model>，包裹器据此判断关闭、播放动画
+ *   - visible：绑给 <el-dialog v-model>，组件自己控制显示/隐藏
  *   - params：本次 open 传入的参数
- *   - close / cancel：把结果交回调用方
+ *   - close / cancel：组件关闭时把结果交回调用方
+ *
+ * 注意：这一层是「组件 ↔ 包裹器」的内部约定，业务调用方完全看不到。
  */
 export interface DialogRuntime<P = Record<string, unknown>, R = unknown> {
   /** 弹窗是否可见：组件里 `v-model="visible"` 绑给 el-dialog */
@@ -47,7 +50,7 @@ export interface DialogRuntime<P = Record<string, unknown>, R = unknown> {
 }
 
 /**
- * 弹窗组件可选暴露的动作：包裹器 close() / open() 时优先调用这里的方法，
+ * 弹窗组件可选暴露的动作：包裹器 open() / close() 时优先调用这里的方法，
  * 从而实现「业务组件覆盖默认打开、关闭」。
  *
  *   defineExpose({ open, close })   // 两个都可选，只写一个也行
@@ -73,6 +76,8 @@ export interface DialogCallbacks<R = unknown> {
  * 第二个参数的两种写法：
  *   - 回调对象：{ onOk, onCancel, onClose }
  *   - 单个函数：关闭时调用一次，确定传结果值、取消/关闭传 null
+ *
+ * 两种写法都是 await 的补充（早期业务不习惯 await 时用），语义完全一致。
  */
 export type DialogCallbackArg<R = unknown> = DialogCallbacks<R> | ((result: R | null) => void)
 
@@ -92,29 +97,40 @@ export interface WrapDialogOptions<P = Record<string, unknown>, R = unknown> {
 }
 
 /**
- * wrapDialog 的返回值：这就是"弹窗句柄"。
- * 业务里 import 配置文件后直接用它：
- *   orderDialog.open(params, callbacks) / close() / destroy() / isOpen
+ * 业务侧拿到的弹窗对象 —— 只有一件事：请求打开，然后等结果。
+ *
+ * 打开、关闭、销毁都是弹窗自己的事：
+ *   - 打开：包裹器挂载组件、注入上下文，由组件自己把 visible 置 true
+ *     （组件 defineExpose({ open }) 时，由组件写自己的打开逻辑）
+ *   - 关闭：组件里的按钮 / X / 遮罩 / ESC，组件自己调 close(result) 或 cancel()
+ *   - 业务代码只 await 结果，不参与弹窗生命周期的任何一环
  */
 export interface DialogController<P = Record<string, unknown>, R = unknown> {
-  /** 包裹器名字 */
+  /** 包裹器名字（日志 / 调试用） */
   readonly name: string
-  /** 当前是否有打开的实例（在 computed 里读取可响应） */
-  readonly isOpen: boolean
   /**
-   * 打开弹窗。每次 open 都会重新挂载，所以参数可以每次不同。
+   * 打开弹窗，等它被组件自己关掉，拿到结果。
    * @param params 传给弹窗组件的参数（组件里 useDialog().params 或声明同名 props）
-   * @param callbacks 回调对象，或单个函数
-   * @returns 确定时 resolve 结果值，取消 / 关闭时 resolve null
+   * @param callbacks 回调风格（可选），与 await 等价
+   * @returns 确定时 resolve 结果值；取消 / 关闭时 resolve null
    */
   open: (params?: P, callbacks?: DialogCallbackArg<R>) => Promise<R | null>
-  /**
-   * 程序化关闭：close() 视为取消（null）；close(result) 视为确定并回传 result。
-   * @returns 是否真的关闭了一个打开的弹窗
-   */
+}
+
+/**
+ * 包裹器的内部句柄：在 DialogController 之上多了 close / destroy / isOpen。
+ *
+ * 这些是"机制"层面的能力（重复 open 时销毁旧实例、调试面板验证包裹器行为），
+ * 只有框架自己用；业务代码不应该拿 —— 用 getDialogHandle() 仅在调试 / 测试里取。
+ */
+export interface DialogHandle<P = Record<string, unknown>, R = unknown>
+  extends DialogController<P, R> {
+  /** 程序化关闭：不传值视为取消；传值视为"确定并把值交回"（框架内部用） */
   close: (result?: R) => boolean
-  /** 立即销毁（不播关闭动画），Promise 以 null 结束；用于页面卸载 / 强制重置 */
+  /** 立即销毁，不等关闭动画（框架内部用：重复 open、页面重置） */
   destroy: () => boolean
+  /** 当前是否有打开的实例 */
+  readonly isOpen: boolean
 }
 
 /** 内置确认框的参数 */

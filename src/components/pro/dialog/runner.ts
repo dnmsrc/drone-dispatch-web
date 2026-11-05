@@ -5,7 +5,7 @@
 //   - 新建一个容器 div 挂到 body（弹窗不占业务页面的 DOM 层级）
 //   - 用 render() 挂载 Runner，由 Runner 注入上下文并渲染业务弹窗组件
 //   - 关闭动作发生后延迟 400ms 卸载（让 el-dialog 关闭动画播完，另有兜底）
-//   - 把 Runner 暴露的 close 入口交回包裹器，实现 controller.close() / destroy()
+//   - 把 Runner 暴露的 close 入口交回包裹器内部句柄（重复 open 时销毁旧实例 / 调试用）
 // ─────────────────────────────────────────────────────────────
 import { h, render } from 'vue'
 import type { AppContext, Component, VNode } from 'vue'

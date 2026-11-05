@@ -320,12 +320,13 @@ const actions: TableActions = {
 
 核心：**一个弹窗 = 一个业务弹窗组件 + 一个平行位置的 ts 配置文件**。
 
-- 业务弹窗组件是**完全正常的 Vue 组件**：自己写 `<el-dialog>`、自己的标题 / 按钮 / 布局，自己管 `visible`
-- 组件平行位置放一个 `xxx.dialog.ts`，用 `wrapDialog(组件, { name })` 把组件包成「句柄」
-- 业务代码只 import 这个 ts 文件，调 `.open()` 打开；需要外部控制时用 `.close()` / `.destroy()`
+职责分三层，互不越界：
 
-包裹器负责：挂载到 `body`、注入 `visible` / `params` / `close` / `cancel`、收集结果、关闭动画播完后卸载。
-组件负责：长什么样、怎么关。
+| 层 | 负责 |
+|---|---|
+| 业务弹窗组件 | 长什么样、什么时候显示、什么时候关（点按钮 / 点 X / 遮罩 / 自己倒计时都行） |
+| 平行位置的 ts | 用 `wrapDialog(组件, { name })` 把组件包成「弹窗对象」并导出 |
+| 业务调用代码 | 只做一件事：`await xxx.open(params)`，拿弹窗里出来的数据 |
 
 ```
 src/views/order/
@@ -354,7 +355,7 @@ const { visible, params, close, cancel } = useDialog<OrderParams, Order>()
 ```
 
 ```ts
-// ② OrderDialog.dialog.ts：包裹器把组件包成句柄
+// ② OrderDialog.dialog.ts：包裹器把组件包成弹窗对象
 import { wrapDialog } from '@/components/pro'
 import OrderDialog from './OrderDialog.vue'
 
@@ -362,23 +363,39 @@ export const orderDialog = wrapDialog<OrderParams, Order>(OrderDialog, { name: '
 ```
 
 ```ts
-// ③ 业务里：只认这个 ts 文件
+// ③ 业务里：只认这个 ts 文件，只调 open()
 import { orderDialog } from '@/views/order/OrderDialog.dialog'
 
-const data = await orderDialog.open({ id: 1 }) // 打开，await 结果
+const data = await orderDialog.open({ id: 1 }) // 打开 → 等弹窗自己被关 → 拿结果
 if (!data) return // 取消 / 关闭 → null
 
+// 回调写法（第二个参数可以是对象，也可以直接是函数）
 orderDialog.open({ id: 2 }, { onOk: (d) => save(d), onCancel: () => ElMessage.info('已取消') })
-orderDialog.close() // 程序化关闭（视为取消）
-orderDialog.close(row) // 程序化关闭并把 row 当「确定」交回
-orderDialog.destroy() // 立即销毁（不等关闭动画）
+```
+
+**业务侧 API 只有 `open`**
+
+| 成员 | 说明 |
+|---|---|
+| `open(params?, callbacks?)` | 打开弹窗，等它自己被关掉；确定 → 组件交回的值，取消 / 关闭 → `null` |
+| `name` | 包裹器名字（日志 / 调试用） |
+
+没有 `close()` / `destroy()` / `isOpen`：**打开、关闭、销毁都是弹窗自己的事**，调用方不参与生命周期。
+
+- 组件底部按钮里 `close(result)` / `cancel()`
+- 点右上角 X / 遮罩 / ESC：组件自己把 `visible` 置 `false`，包裹器识别为关闭
+- 组件自己决定关闭时机（倒计时、条件满足、二次确认通过）时，也是在组件里调 `close()`，调用方只是 `await` 到结果
+
+```ts
+// 组件里：弹窗自己 3 秒后关，业务代码完全不知道这件事
+setTimeout(() => close('auto'), 3000)
 ```
 
 **useDialog()：组件里能拿到什么**
 
 | 字段 | 说明 |
 |---|---|
-| `visible` | `Ref<boolean>`，绑给 `<el-dialog v-model>`；包裹器据此判断关闭、播放关闭动画 |
+| `visible` | `Ref<boolean>`，绑给 `<el-dialog v-model>`；组件自己控制显示 / 隐藏 |
 | `params` | 本次 `open` 传入的参数 |
 | `close(result?)` | 关闭并把结果交回调用方（语义 = 点确定）；不传值视为 `true` |
 | `cancel()` | 关闭并标记取消（调用方拿到 `null`） |
@@ -401,23 +418,14 @@ defineExpose({ open, close })
 
 优先级：**组件 `defineExpose` > `wrapDialog` 的 `options.open` / `options.close` > 包裹器默认动作**。
 
-**包裹器方法**
-
-| 方法 | 说明 |
-|---|---|
-| `open(params?, callbacks?)` | 打开。参数进组件的 `useDialog().params`；返回 Promise |
-| `close(result?)` | 程序化关闭：不传值视为取消（`null`）；传值视为「确定」并把值交回；返回 `boolean` |
-| `destroy()` | 立即销毁（不播关闭动画），Promise 以 `null` 结束；返回 `boolean` |
-| `isOpen` | 当前是否有打开的实例（在 `computed` 里读取可响应） |
-| `name` | 包裹器名字（日志 / 调试用） |
-
 **结果约定**
 
 | 关闭方式 | Promise 结果 | 回调（与 Promise 并存） |
 |---|---|---|
 | 组件 `close(value)` / 点确定 | 组件交回的值 | `onOk(value)` |
-| 点取消 / `close()` | `null` | `onCancel()` |
-| 右上角 X / 遮罩 / ESC / `destroy()` | `null` | `onClose()`（不传时回退 `onCancel`） |
+| 点取消 / 组件 `cancel()` | `null` | `onCancel()` |
+| 右上角 X / 遮罩 / ESC | `null` | `onClose()`（不传时回退 `onCancel`） |
+| 被下一次 `open` 顶掉 | `null` | `onClose()` |
 
 `open` 的第二个参数也可以直接是一个函数：`open(params, (result) => {})`，关闭时调用一次（确定传结果值、取消传 `null`）。
 
@@ -431,7 +439,7 @@ defineExpose({ open, close })
 
 **内置组件**（同样是「正常定义的弹窗组件 + 包裹器」）：
 
-- `FormDialog.vue` + `createFormDialog`：配置式表单弹窗，确定时先校验
+- `FormDialog.vue` + `createFormDialog`：配置式表单弹窗，确定时先校验，校验通过才关闭
 - `ConfirmDialog.vue` + `confirmDialog`：确认框，`.open()` 返回 `true` / `null`
 
 ```ts
@@ -450,15 +458,29 @@ const ok = await confirmDialog.open({ title: '删除订单', content: '删除后
 
 表单弹窗的参数：`open({ ...row, title })` 里的键既是初始值也是覆盖项；`beforeOk` 也可以从参数传（返回 `false` 或抛错都不关闭）。
 
+**内部句柄（调试 / 测试用，业务代码不要用）**
+
+包裹器的机制层能力（重复 `open` 时销毁旧实例、测试场验证包裹器行为）由内部句柄提供：
+
+```ts
+import { getDialogHandle } from '@/components/pro'
+
+const handle = getDialogHandle(orderDialog) // 只传 wrapDialog / createFormDialog / confirmDialog 返回的对象
+handle.isOpen // 当前是否有打开的实例
+handle.close() / handle.close(value) // 程序化关闭
+handle.destroy() // 立即销毁，不等关闭动画
+```
+
+业务代码不需要它们 —— 正常路径永远只有 `await xxx.open()`。
+
 **约定**：弹窗参数统一从 `useDialog().params` 取（不要依赖 params 变成 props）；组件里加
 `defineOptions({ inheritAttrs: false })`，避免参数被当成 DOM 属性渲染。
 
 **实现要点**：每次 `open` 新建容器挂到 `body`、用 `render()` 挂载 Runner（注入上下文 + 渲染业务组件）；
-关闭后等 400ms（覆盖 el-dialog 的 300ms 动画）卸载并移除 DOM。`close()` / `destroy()` 通过 Runner
-暴露的入口走同一套关闭流程，`isOpen` 用 ref 保存所以 `computed` 里可响应。同一包裹器重复 `open` 时旧实例
-静默销毁（它的 Promise 以 `null` 结束）。层级交给 Element Plus 全局计数器，嵌套自动叠高；业务组件自己把
-`visible` 置 `false`（点 X / 遮罩 / ESC）也会被识别为关闭。`main.ts` 通过 `setDialogAppContext(app._context)`
-注入应用上下文。样式在 `src/styles/theme/pro/dialog.scss`。
+关闭后等 400ms（覆盖 el-dialog 的 300ms 动画）卸载并移除 DOM。组件自己把 `visible` 置 `false`
+（点 X / 遮罩 / ESC）也会被识别为关闭。同一包裹器重复 `open` 时旧实例销毁、它的 Promise 以 `null` 结束；
+程序化销毁同样会让 Promise 以 `null` 结束，不会悬挂。层级交给 Element Plus 全局计数器，嵌套自动叠高。
+`main.ts` 通过 `setDialogAppContext(app._context)` 注入应用上下文。样式在 `src/styles/theme/pro/dialog.scss`。
 
 ### 控件名对照表（`control`）
 

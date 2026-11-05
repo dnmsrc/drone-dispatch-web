@@ -51,7 +51,7 @@ export const devMenuGroups: DevMenuGroup[] = [
     title: '弹窗 ProDialog',
     icon: 'ChatLineSquare',
     items: [
-      { title: '架构与句柄', path: '/dev/playground/dialog/wrapper' },
+      { title: '架构与职责', path: '/dev/playground/dialog/wrapper' },
       { title: '基础用法', path: '/dev/playground/dialog/basic' },
       { title: '表单弹窗', path: '/dev/playground/dialog/form' },
       { title: '自定义内容', path: '/dev/playground/dialog/component' },

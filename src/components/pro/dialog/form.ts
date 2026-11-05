@@ -8,7 +8,10 @@
 //     title: '新增订单',
 //   })
 //
-// 想完全自己掌控打开/关闭，直接写业务组件 + wrapDialog 即可。
+//   业务里只需要：const data = await orderFormDialog.open({ title: '编辑' })
+//   弹窗自己负责隐藏、校验、提交后关闭；业务只拿表单数据（取消时是 null）。
+//
+// 想完全自己掌控界面的打开/关闭表现，直接写业务组件 + wrapDialog 即可。
 // ─────────────────────────────────────────────────────────────
 import FormDialog from './FormDialog.vue'
 import { wrapDialog } from './wrap'

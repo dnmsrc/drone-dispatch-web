@@ -7,6 +7,9 @@
 //   // 回调风格
 //   confirmDialog.open({ content: '…' }, { onOk: () => save(), onCancel: () => ElMessage.info('已取消') })
 //
+// 业务只管 await 结果：点确定 → true，点取消 / X → null。
+// 弹窗自己控制什么时候关，调用方不参与。
+//
 // 实现上就是 wrapDialog(ConfirmDialog, { name: 'confirm' })，
 // 和业务里「组件 + 平行 ts 配置文件」的写法一模一样。
 // ─────────────────────────────────────────────────────────────

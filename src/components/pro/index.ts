@@ -10,9 +10,12 @@ export { default as ProField } from './ProField.vue'
 export { default as ProTable } from './ProTable.vue'
 export { default as ProSearch } from './ProSearch.vue'
 
-// 弹窗包裹器：业务正常写弹窗组件 + 平行位置的 ts 配置文件，业务里 .open / .close / .destroy
+// 弹窗包裹器：业务正常写弹窗组件 + 平行位置的 ts 配置文件，
+// 业务里只 `await xxx.open()` 拿结果，弹窗自己控制打开/关闭。
+// getDialogHandle 仅供调试/测试取内部句柄（业务代码不要用）。
 export {
   wrapDialog,
+  getDialogHandle,
   useDialog,
   confirmDialog,
   createFormDialog,
@@ -28,6 +31,7 @@ export type {
   DialogCallbacks,
   DialogController,
   DialogExposed,
+  DialogHandle,
   DialogRuntime,
   FormDialogProps,
   WrapDialogOptions,
