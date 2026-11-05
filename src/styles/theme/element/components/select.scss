@@ -1,0 +1,30 @@
+@use '../../variables.scss' as theme;
+
+// ─────────────────────────────────────────────
+// 下拉（el-select）重写
+// 依据原型：触发器 13px 字号、32px 高度（高度已在 Element 变量中统一），
+// 下拉面板 4px 圆角、阴影 0 2px 12px rgba(0,0,0,.1)（变量层已配置），
+// 选项字号 13px、hover 浅底、选中主色
+// ─────────────────────────────────────────────
+.el-select {
+  --el-select-input-focus-border-color: #{theme.$color-primary};
+}
+
+.el-select__wrapper {
+  font-size: theme.$control-font-size;
+  min-height: theme.$control-height;
+}
+
+.el-select-dropdown__item {
+  font-size: theme.$control-font-size;
+  color: theme.$text-regular;
+}
+
+.el-select-dropdown__item.is-hovering {
+  background-color: theme.$bg-hover;
+}
+
+.el-select-dropdown__item.is-selected {
+  color: theme.$color-primary;
+  font-weight: theme.$font-weight-primary;
+}

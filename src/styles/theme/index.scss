@@ -1,0 +1,64 @@
+// 主题包入口：对外暴露 SCSS 变量，并输出 --app-* CSS 变量
+// 业务页面两种用法都支持：
+//   1) SCSS：@use '@/styles/theme' as theme;  →  theme.$color-primary
+//   2) CSS：color: var(--app-color-primary);（不依赖 SCSS，适合任意组件）
+@forward './variables.scss';
+@use './variables.scss' as *;
+
+:root {
+  // 品牌色 / 语义色
+  --app-color-primary: #{$color-primary};
+  --app-color-primary-hover: #{$color-primary-hover};
+  --app-color-primary-active: #{$color-primary-active};
+  --app-color-primary-light: #{$color-primary-light};
+  --app-color-success: #{$color-success};
+  --app-color-warning: #{$color-warning};
+  --app-color-danger: #{$color-danger};
+  --app-color-info: #{$color-info};
+
+  // 文字
+  --app-text-primary: #{$text-primary};
+  --app-text-regular: #{$text-regular};
+  --app-text-secondary: #{$text-secondary};
+  --app-text-placeholder: #{$text-placeholder};
+  --app-text-disabled: #{$text-disabled};
+
+  // 背景 / 边框
+  --app-bg-page: #{$bg-page};
+  --app-bg-card: #{$bg-card};
+  --app-bg-hover: #{$bg-hover};
+  --app-border-color: #{$border-color};
+  --app-border-color-light: #{$border-color-light};
+  --app-border-color-lighter: #{$border-color-lighter};
+
+  // 字体
+  --app-font-family: #{$font-family};
+  --app-font-size-xl: #{$font-size-xl};
+  --app-font-size-lg: #{$font-size-lg};
+  --app-font-size-md: #{$font-size-md};
+  --app-font-size-base: #{$font-size-base};
+  --app-font-size-sm: #{$font-size-sm};
+  --app-font-size-xs: #{$font-size-xs};
+  --app-font-weight-primary: #{$font-weight-primary};
+
+  // 控件 / 圆角
+  --app-control-font-size: #{$control-font-size};
+  --app-control-height: #{$control-height};
+  --app-control-height-lg: #{$control-height-lg};
+  --app-control-height-sm: #{$control-height-sm};
+  --app-radius-base: #{$radius-base};
+  --app-radius-sm: #{$radius-sm};
+  --app-radius-round: #{$radius-round};
+
+  // 间距
+  --app-space-xs: #{$space-xs};
+  --app-space-sm: #{$space-sm};
+  --app-space-md: #{$space-md};
+  --app-space-lg: #{$space-lg};
+  --app-space-xl: #{$space-xl};
+
+  // 阴影
+  --app-shadow-card: #{$shadow-card};
+  --app-shadow-dropdown: #{$shadow-dropdown};
+  --app-shadow-dialog: #{$shadow-dialog};
+}

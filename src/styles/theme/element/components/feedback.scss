@@ -1,0 +1,22 @@
+// ─────────────────────────────────────────────
+// 弹窗 / 抽屉 / 消息框重写
+// 规则来自原型全局样式：小屏下不超出视口
+//   .el-dialog / .el-message-box：最多 calc(100vw - 32px)
+//   .el-drawer：最大 100vw
+//   daterange：输入框宽度不撑破容器
+// ─────────────────────────────────────────────
+.el-dialog {
+  max-width: calc(100vw - 32px);
+}
+
+.el-message-box {
+  max-width: calc(100vw - 32px);
+}
+
+.el-drawer {
+  max-width: 100vw;
+}
+
+.el-date-editor--daterange.el-input__wrapper {
+  max-width: 100%;
+}

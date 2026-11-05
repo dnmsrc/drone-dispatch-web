@@ -1,0 +1,34 @@
+@use '../../variables.scss' as theme;
+
+// ─────────────────────────────────────────────
+// 按钮（el-button）重写
+// 依据原型管理端的若伊（RuoYi）风格：
+//   1) 表单壳内按钮字号 13px（Element 默认 14px，与 14px 正文混排时偏大）
+//   2) 大尺寸 14px、小尺寸 12px，随控件尺寸档位递进
+//   3) 主色按钮 hover / active 显式取 Element 色阶（light-3 / dark-2），
+//      与原型视觉一致，同时集中在此便于后续换成设计稿色值
+// ─────────────────────────────────────────────
+.el-button {
+  font-size: theme.$control-font-size;
+  border-radius: theme.$radius-base;
+}
+
+.el-button--large {
+  font-size: theme.$font-size-base;
+}
+
+.el-button--small {
+  font-size: theme.$font-size-xs;
+}
+
+.el-button--primary {
+  --el-button-hover-bg-color: var(--el-color-primary-light-3);
+  --el-button-hover-border-color: var(--el-color-primary-light-3);
+  --el-button-active-bg-color: var(--el-color-primary-dark-2);
+  --el-button-active-border-color: var(--el-color-primary-dark-2);
+}
+
+// 禁用态文字色统一到主题禁用色（避免 Element 默认浅蓝偏灰）
+.el-button.is-disabled {
+  --el-button-disabled-text-color: #{theme.$text-disabled};
+}

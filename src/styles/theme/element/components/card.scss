@@ -1,0 +1,16 @@
+@use '../../variables.scss' as theme;
+
+// ─────────────────────────────────────────────
+// 卡片（el-card）重写
+// 依据原型 .card：白底、4px 圆角、内边距 16px、阴影 0 1px 4px rgba(0, 21, 41, 0.08)
+// （内边距 / 圆角 / 边框色已在 Element 变量层配置）
+// ─────────────────────────────────────────────
+.el-card {
+  border-radius: theme.$radius-base;
+  border-color: theme.$border-color-lighter;
+}
+
+// 与原型卡片一致：默认带浅阴影；显式 shadow="never" 时保留 Element 的语义（不加阴影）
+.el-card:not(.is-never-shadow) {
+  box-shadow: theme.$shadow-card;
+}

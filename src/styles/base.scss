@@ -1,0 +1,42 @@
+@use './theme/variables.scss' as theme;
+
+// 全局基础样式（对齐原型管理端）
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: theme.$font-family;
+  font-size: theme.$font-size-base;
+  color: theme.$text-primary;
+  background-color: theme.$bg-page;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: theme.$color-primary;
+  text-decoration: none;
+}
+
+// 滚动条（原型：8px 宽、#c0c4cc 滑块）
+::-webkit-scrollbar {
+  width: theme.$scrollbar-width;
+  height: theme.$scrollbar-width;
+}
+
+::-webkit-scrollbar-thumb {
+  background: theme.$scrollbar-thumb;
+  border-radius: theme.$space-xs;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}

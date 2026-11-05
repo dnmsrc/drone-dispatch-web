@@ -1,0 +1,21 @@
+@use '../../variables.scss' as theme;
+
+// ─────────────────────────────────────────────
+// 输入框（el-input / el-textarea）重写
+// 依据原型：表单控件 13px 字号、32px 高度（高度已在 Element 变量中统一），
+// 边框 / 焦点 / 占位符色与主题变量对齐
+// ─────────────────────────────────────────────
+.el-input {
+  --el-input-text-color: #{theme.$text-regular};
+  --el-input-border-color: #{theme.$border-color};
+  --el-input-hover-border-color: #{theme.$text-disabled};
+  --el-input-focus-border-color: #{theme.$color-primary};
+  --el-input-placeholder-color: #{theme.$text-placeholder};
+
+  font-size: theme.$control-font-size;
+}
+
+.el-textarea__inner {
+  font-size: theme.$control-font-size;
+  color: theme.$text-regular;
+}

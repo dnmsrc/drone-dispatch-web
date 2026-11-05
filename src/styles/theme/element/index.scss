@@ -1,0 +1,107 @@
+@use '../variables.scss' as theme;
+
+// Element Plus 主题变量覆盖
+// 说明：Element 的 theme-chalk 源码用 !default 声明变量，这里通过 @forward ... with
+// 在样式编译前注入主题值；必须在 element-plus/theme-chalk/src/index.scss 之前加载。
+// 只写需要改动的键，Element 会用默认值补齐（map.merge 语义）。
+@forward 'element-plus/theme-chalk/src/common/var.scss' with (
+  // 品牌色 / 语义色
+  $colors: (
+    'primary': (
+      'base': theme.$color-primary,
+    ),
+    'success': (
+      'base': theme.$color-success,
+    ),
+    'warning': (
+      'base': theme.$color-warning,
+    ),
+    'danger': (
+      'base': theme.$color-danger,
+    ),
+    'error': (
+      'base': theme.$color-danger,
+    ),
+    'info': (
+      'base': theme.$color-info,
+    ),
+  ),
+  // 文字色
+  $text-color: (
+    'primary': theme.$text-primary,
+    'regular': theme.$text-regular,
+    'secondary': theme.$text-secondary,
+    'placeholder': theme.$text-placeholder,
+    'disabled': theme.$text-disabled,
+  ),
+  // 边框色
+  $border-color: (
+    '': theme.$border-color,
+    'light': theme.$border-color-light,
+    'lighter': theme.$border-color-lighter,
+    'extra-light': theme.$border-color-extra-light,
+  ),
+  // 背景色
+  $bg-color: (
+    '': theme.$bg-card,
+    'page': theme.$bg-page,
+    'overlay': theme.$bg-card,
+  ),
+  // 字体
+  $font-family: (
+    '': theme.$font-family,
+  ),
+  $font-size: (
+    'extra-large': theme.$font-size-xl,
+    'large': theme.$font-size-lg,
+    'medium': theme.$font-size-md,
+    'base': theme.$font-size-base,
+    'small': theme.$font-size-sm,
+    'extra-small': theme.$font-size-xs,
+  ),
+  // 圆角
+  $border-radius: (
+    'base': theme.$radius-base,
+    'small': theme.$radius-sm,
+    'round': theme.$radius-round,
+    'circle': 100%,
+  ),
+  // 表单控件：字号 13px、高度 32px（若伊风）
+  $input-font-size: (
+    'large': theme.$font-size-base,
+    'default': theme.$control-font-size,
+    'small': theme.$font-size-xs,
+  ),
+  $input-height: (
+    'large': theme.$control-height-lg,
+    'default': theme.$control-height,
+    'small': theme.$control-height-sm,
+  ),
+  $input-line-height: (
+    'large': theme.$control-height-lg,
+    'default': theme.$control-height,
+    'small': theme.$control-height-sm,
+  ),
+  // 下拉：触发器与选项字号 13px、下拉面板阴影/内边距
+  $select: (
+    'font-size': theme.$control-font-size,
+    'input-font-size': theme.$control-font-size,
+  ),
+  $select-option: (
+    'text-color': theme.$text-regular,
+    'height': 34px,
+    'hover-background': theme.$bg-hover,
+    'selected-text-color': theme.$color-primary,
+  ),
+  $select-dropdown: (
+    'shadow': theme.$shadow-dropdown,
+    'padding': 6px 0,
+    'max-height': 274px,
+  ),
+  // 卡片内边距与原型 .card 一致（16px，Element 默认 20px）
+  $card: (
+    'padding': theme.$space-lg,
+    'border-radius': theme.$radius-base,
+    'border-color': theme.$border-color-lighter,
+  )
+);

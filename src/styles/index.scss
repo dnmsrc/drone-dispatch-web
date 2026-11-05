@@ -1,0 +1,22 @@
+// 星穹 SkyShow · 管理后台样式总入口
+// 加载顺序必须保持：主题变量 → Element 变量定制 → Element 全量样式 → 组件重写 → 全局基础
+// （Element 的变量定制要在其样式之前生效，组件重写要在其默认样式之后才能覆盖）
+
+// 1. 主题包：--app-* CSS 变量
+@use './theme/index.scss' as app-theme;
+
+// 2. Element Plus 主题变量定制（@forward 注入，必须早于第 3 步）
+@use './theme/element/index.scss' as el-theme;
+
+// 3. Element Plus 全量样式（直接编译 SCSS 源码，应用第 2 步的定制值）
+@use 'element-plus/theme-chalk/src/index.scss';
+
+// 4. 基础控件重写（顺序在 Element 默认样式之后）
+@use './theme/element/components/button.scss';
+@use './theme/element/components/input.scss';
+@use './theme/element/components/select.scss';
+@use './theme/element/components/card.scss';
+@use './theme/element/components/feedback.scss';
+
+// 5. 全局基础样式
+@use './base.scss';
