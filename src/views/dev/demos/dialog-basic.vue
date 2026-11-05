@@ -1,8 +1,9 @@
 <script setup lang="ts">
-// 弹窗 · 基础用法：Promise 风格、回调风格、确认框
+// 弹窗 · 基础用法：包裹器 Promise 风格、回调风格、内置确认框
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { confirmDialog, openDialog } from '@/components/pro'
+import { confirmDialog } from '@/components/pro'
+import { messageDialog } from '../dialogs/message.dialog'
 import DemoBlock from '../components/DemoBlock.vue'
 
 const lastResult = ref('（还没有操作）')
@@ -15,18 +16,18 @@ function record(label: string, value: unknown) {
 
 /** 最常用：await 弹窗结果，代码按顺序往下写 */
 async function openBasic() {
-  const result = await openDialog<boolean>({
+  const result = await messageDialog.open({
     title: '普通弹窗',
     description: '打开后 script 停在这一行，结果回来后继续往下执行。',
     content: '点「确定」返回 true；点「取消」、右上角关闭、按 ESC 返回 null。',
     okText: '知道了',
   })
-  record('普通弹窗', result)
+  record('messageDialog.open()', result)
 }
 
-/** 确认框：await 直接拿到布尔值 */
+/** 确认框也是一个包裹器：await 直接拿到布尔值 */
 async function removeOrder() {
-  const ok = await confirmDialog({
+  const ok = await confirmDialog.open({
     title: '删除订单',
     content: '删除后订单数据不可恢复，确认删除「DD202511050001」？',
     type: 'danger',
@@ -40,42 +41,55 @@ async function removeOrder() {
   record('删除订单', '确认 → 继续执行删除逻辑')
 }
 
-/** 回调风格：不 await，结果走 onOk / onCancel */
+/** 回调风格：不 await，结果走 onOk / onCancel / onClose */
 function callbackStyle() {
-  openDialog({
-    title: '回调风格',
-    content: '不 await 也能用，结果通过 onOk / onCancel 回调交回。',
-    okText: '继续',
-    onOk: () => {
-      record('回调风格', 'onOk 被调用')
-      ElMessage.success('onOk 收到结果')
+  void messageDialog.open(
+    {
+      title: '回调风格',
+      content: '不 await 也能用，结果通过 onOk / onCancel / onClose 回调交回。',
+      okText: '继续',
     },
-    onCancel: () => record('回调风格', 'onCancel 被调用'),
-  })
+    {
+      onOk: () => {
+        record('回调风格', 'onOk 被调用')
+        ElMessage.success('onOk 收到结果')
+      },
+      onCancel: () => record('回调风格', 'onCancel 被调用'),
+      onClose: () => record('回调风格', 'onClose 被调用（点 X / 遮罩 / ESC）'),
+    },
+  )
 }
 
-const code = `// ① Promise 风格：拿结果后继续（最常用）
-const ok = await confirmDialog({ title: '删除订单', content: '…', type: 'danger' })
-if (!ok) return
-await removeOrder(id)
+const code = `// ① 弹窗的"配置文件"：src/dialogs/message.dialog.ts
+import { defineDialog } from '@/components/pro'
+export const messageDialog = defineDialog<MessageDialogParams, boolean>({
+  name: 'message',
+  title: (params) => params.title ?? '提示',
+  content: (params) => params.content,
+  okValue: true,          // 非表单模式：确定时返回的值
+})
 
-// ② 通用弹窗：确定返回 true，取消 / 关闭返回 null
-const result = await openDialog<boolean>({ title: '普通弹窗', content: '…' })
+// ② 业务里只认包裹器：await 拿结果，代码按顺序写
+import { messageDialog } from '@/dialogs/message.dialog'
+const result = await messageDialog.open({ title: '普通弹窗', content: '…' })
+if (result === null) return       // 取消 / 关闭
 
-// ③ 回调风格：不 await
-openDialog({
-  title: '回调风格',
-  content: '…',
-  onOk: () => ElMessage.success('确认'),
-  onCancel: () => ElMessage.info('取消'),
-})`
+// ③ 回调风格（不 await 也行）
+messageDialog.open(
+  { title: '回调风格', content: '…' },
+  { onOk: () => save(), onCancel: () => ElMessage.info('已取消') },
+)
+
+// ④ 内置确认框同样是包裹器：.open 返回 true / null
+const ok = await confirmDialog.open({ content: '确认删除？', type: 'danger' })`
+
 </script>
 
 <template>
   <div class="demo-page">
     <DemoBlock
-      title="命令式弹窗的三种调用方式"
-      desc="弹窗逻辑与业务逻辑写在一起，不再需要在 template 里维护 visible 变量"
+      title="包裹器：引入配置文件，调 .open() 打开"
+      desc="弹窗逻辑与业务逻辑写在一起，不在 template 里维护 visible 变量"
       :code="code"
     >
       <div class="demo-actions">

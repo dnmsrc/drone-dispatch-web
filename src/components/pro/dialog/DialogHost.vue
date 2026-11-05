@@ -1,12 +1,15 @@
 <script setup lang="ts">
 // ─────────────────────────────────────────────────────────────
-// 命令式弹窗的宿主组件（内部组件，业务不直接在 template 中使用）
+// 弹窗宿主组件（内部组件，业务不直接使用）
 //
-// 由 openDialog 通过 render() 挂载，负责：
+// 由 mountDialog 通过 render() 挂载，负责：
 //   - el-dialog 的显示/关闭与过渡
 //   - 四种内容来源的渲染（自定义组件 / 配置式表单 / render 函数 / 文本）
-//   - 默认底部按钮、"确定"前的 beforeOk 钩子与校验
-//   - 把关闭动作与结果值通过 finish 事件交回 openDialog
+//   - 默认底部按钮、"确定"前的 beforeOk 钩子与表单校验
+//   - 把关闭动作与结果值通过 finish 事件交回 mountDialog
+//   - 把程序化关闭能力（api）在挂载完成后交给 mountDialog（wrapper.close / destroy 用）
+//
+// 注意：这里只负责"一次打开"的渲染，打开/销毁由包裹器（defineDialog）统一管理。
 // ─────────────────────────────────────────────────────────────
 import { computed, defineComponent, h, onMounted, provide, reactive, ref } from 'vue'
 import type { Component, VNodeChild } from 'vue'
@@ -15,13 +18,21 @@ import ProForm from '../ProForm.vue'
 import type { ProFormExpose } from '../types'
 import { cloneValue, defaultValueOf, snapshotModel } from '../helpers'
 import { DIALOG_CONTEXT_KEY } from './context'
-import type { DialogAction, DialogContext, DialogOptions } from './types'
+import type { DialogAction, DialogContext, DialogHostApi, DialogHostOptions } from './types'
 
-const props = defineProps<{ options: DialogOptions }>()
+const props = defineProps<{
+  /** 已解析的弹窗配置 */
+  options: DialogHostOptions
+  /** 本次打开传入的参数：组件模式下作为 props，表单模式下作为初始值 */
+  params: Record<string, unknown>
+  /** 宿主就绪后把控制能力交回 mountDialog */
+  onReady?: (api: DialogHostApi) => void
+}>()
+
 const emit = defineEmits<{
-  /** 弹窗已关闭并确定结果（openDialog 据此 resolve Promise） */
+  /** 弹窗已关闭并确定结果（mountDialog 据此 resolve Promise） */
   finish: [payload: { action: DialogAction; value: unknown }]
-  /** 关闭动画结束（openDialog 据此卸载组件） */
+  /** 关闭动画结束（mountDialog 据此卸载组件） */
   closed: []
 }>()
 
@@ -29,12 +40,18 @@ const visible = ref(false)
 const okLoading = ref(false)
 const formRef = ref<ProFormExpose>()
 
-/** 表单模式的模型：先铺初始值，再按字段补默认值，之后由 ProForm 直接读写 */
+/**
+ * 表单模式的模型：定义里的 model 作默认值 → 本次 open 的 params 覆盖 → 字段默认值兜底。
+ * 编辑场景直接把整行数据作为 params 传进来即可。
+ */
 const formModel = reactive<Record<string, unknown>>({})
 function initFormModel() {
   const { fields = [], model } = props.options
   if (model) {
     for (const key of Object.keys(model)) formModel[key] = cloneValue(model[key])
+  }
+  for (const key of Object.keys(props.params ?? {})) {
+    formModel[key] = cloneValue(props.params[key])
   }
   for (const field of fields) {
     if (formModel[field.prop] === undefined) formModel[field.prop] = defaultValueOf(field)
@@ -75,6 +92,11 @@ const context: DialogContext = {
 }
 provide(DIALOG_CONTEXT_KEY, context)
 
+/** 程序化关闭能力：wrapper.close / destroy 通过它走同一套关闭流程 */
+const api: DialogHostApi = {
+  close: (action, value) => settle(action, value),
+}
+
 /** 内容区 VNode：自定义组件 / render 函数 / 文本 */
 function contentVNode(): VNodeChild {
   const opts = props.options
@@ -82,6 +104,7 @@ function contentVNode(): VNodeChild {
     const comp = opts.component as Component
     return h(comp, {
       ...(opts.props ?? {}),
+      ...props.params,
       dialog: context,
       onClose: (value: unknown) => settle('ok', value === undefined ? true : value),
       onCancel: () => settle('cancel', null),
@@ -89,7 +112,6 @@ function contentVNode(): VNodeChild {
   }
   if (opts.render) return opts.render()
   const content = opts.content
-  if (typeof content === 'function') return content()
   if (typeof content === 'string') return h('div', { class: 'pro-dialog-text' }, content)
   if (Array.isArray(content)) return h('div', { class: 'pro-dialog-text' }, content)
   return (content ?? null) as VNodeChild
@@ -106,7 +128,7 @@ const ContentAdapter = defineComponent({
   },
 })
 
-/** 点"取消"：交给 openDialog 触发 onCancel 回调 */
+/** 点"取消"：交给 wrapper 触发 onCancel 回调 */
 function handleCancel() {
   settle('cancel', null)
 }
@@ -151,6 +173,7 @@ function onDialogClosed() {
 
 onMounted(() => {
   visible.value = true
+  props.onReady?.(api)
 })
 </script>
 

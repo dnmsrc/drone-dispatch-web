@@ -1,67 +1,20 @@
 <script setup lang="ts">
-// 弹窗 · 表单：openFormDialog 复用 ProForm，确定时校验通过才关闭并返回数据
+// 弹窗 · 表单：包裹器包住 fields 配置式表单，确定时自动校验
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { confirmDialog, openFormDialog } from '@/components/pro'
-import type { FormFieldConfig } from '@/components/pro'
-import { VENUE_OPTIONS } from '../mock'
+import { orderFormDialog } from '../dialogs/order-form.dialog'
+import type { OrderFormData } from '../dialogs/order-form.dialog'
 import DemoBlock from '../components/DemoBlock.vue'
 
-/** 演示用：表单返回的数据结构 */
-interface OrderForm {
-  id: string
-  nickname: string
-  phone: string
-  venue: string
-  performDate: string
-  drones: number
-  amount: number
-  remark: string
-}
-
-const fields: FormFieldConfig[] = [
-  {
-    prop: 'id',
-    label: '订单号',
-    control: 'input',
-    required: true,
-    props: { placeholder: '如 DD202511080001' },
-  },
-  { prop: 'nickname', label: '客户昵称', control: 'input', required: true },
-  {
-    prop: 'phone',
-    label: '手机号',
-    control: 'input',
-    required: true,
-    rules: [{ pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确', trigger: 'blur' }],
-  },
-  { prop: 'venue', label: '表演场地', control: 'select', options: VENUE_OPTIONS, required: true },
-  { prop: 'performDate', label: '表演日期', control: 'date', required: true },
-  {
-    prop: 'drones',
-    label: '无人机数量',
-    control: 'input-number',
-    props: { min: 1, max: 1000, step: 10 },
-  },
-  { prop: 'amount', label: '订单金额', control: 'input-number', props: { min: 0, step: 100 } },
-  { prop: 'remark', label: '备注', control: 'textarea', span: 24 },
-]
-
-const rows = ref<OrderForm[]>([])
+const rows = ref<OrderFormData[]>([])
 const lastResult = ref('（还没有提交数据）')
 const attempts = ref(0)
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
-/** 新增：拿到表单数据后继续（入列表 + 问是否继续添加） */
+/** 新增：await 拿表单数据，随后继续后续逻辑 */
 async function create() {
-  const data = await openFormDialog<OrderForm>({
-    title: '新增订单',
-    description: '确定时先校验；校验通过才关闭，并把表单数据交回',
-    fields,
-    model: { drones: 120, amount: 16800 },
-  })
-
+  const data = await orderFormDialog.open()
   if (!data) {
     lastResult.value = '已取消 → 返回 null，后面的逻辑不执行'
     return
@@ -70,70 +23,81 @@ async function create() {
   rows.value.unshift(data)
   lastResult.value = JSON.stringify(data, null, 2)
   ElMessage.success(`订单 ${data.id} 已创建`)
-
-  // 链式：创建完紧接着确认是否继续 —— 弹窗逻辑都在这一段里
-  const again = await confirmDialog({
-    title: '继续添加？',
-    content: `订单 ${data.id} 已创建，是否继续添加下一个？`,
-    type: 'info',
-    okText: '继续',
-  })
-  if (again) void create()
 }
 
-/** 编辑：把行数据作为初始值传入，保存后写回表格 */
-async function edit(row: Record<string, unknown>) {
-  const data = await openFormDialog<OrderForm>({
-    title: `编辑订单 ${row.id}`,
-    fields,
-    model: { ...row },
-  })
+/** 确定前钩子：本次 open 传入 beforeOk（覆盖定义里的），返回 false 保持弹窗打开 */
+async function createWithBeforeOk() {
+  attempts.value = 0
+  const data = await orderFormDialog.open(
+    {},
+    {
+      beforeOk: async () => {
+        await sleep(700)
+        if (attempts.value === 0) {
+          attempts.value += 1
+          ElMessage.warning('模拟：服务端校验未通过，弹窗保持打开（填完表单再点确定）')
+          return false
+        }
+        return true
+      },
+    },
+  )
+  if (!data) return
+  rows.value.unshift(data)
+  lastResult.value = JSON.stringify(data, null, 2)
+}
+
+/** 回调风格：不 await，结果走 onOk / onCancel */
+function createWithCallback() {
+  orderFormDialog.open(
+    {},
+    {
+      onOk: (data) => {
+        rows.value.unshift(data as OrderFormData)
+        lastResult.value = `onOk 收到数据：${JSON.stringify(data)}`
+        ElMessage.success('onOk 收到表单数据')
+      },
+      onCancel: () => {
+        lastResult.value = 'onCancel 被调用（已取消）'
+      },
+    },
+  )
+}
+
+/** 编辑：把整行数据作为 params 传入，标题自动变成「编辑订单 xxx」 */
+async function edit(row: OrderFormData) {
+  const data = await orderFormDialog.open({ ...row })
   if (!data) return
   Object.assign(row, data)
   lastResult.value = JSON.stringify(data, null, 2)
   ElMessage.success('已保存（演示）')
 }
 
-/** 确定前钩子：beforeOk 返回 Promise 时按钮自动 loading，返回 false 保持弹窗打开 */
-async function createWithBeforeOk() {
-  attempts.value = 0
-  const data = await openFormDialog<OrderForm>({
-    title: '新增订单（确定前钩子）',
-    description: '第一次点确定会失败（模拟服务器校验），弹窗保持打开；再点一次成功',
-    fields,
-    beforeOk: async () => {
-      await sleep(700)
-      if (attempts.value === 0) {
-        attempts.value += 1
-        ElMessage.warning('模拟：订单号已被占用，请再点一次确定')
-        return false
-      }
-      return true
-    },
-  })
-  if (!data) return
-  rows.value.unshift(data)
-  lastResult.value = JSON.stringify(data, null, 2)
-}
-
-const code = `const data = await openFormDialog<OrderForm>({
-  title: '新增订单',
-  fields: [
-    { prop: 'id', label: '订单号', control: 'input', required: true },
-    { prop: 'venue', label: '表演场地', control: 'select', options: VENUE_OPTIONS },
-    { prop: 'performDate', label: '表演日期', control: 'date' },
-    // …
-  ],
-  model: { drones: 120 },       // 初始值
-  beforeOk: async () => {       // 可选：确定前钩子（自动 loading）
-    await validateOnServer()
-    return true                 // false → 保持弹窗打开
-  },
+const code = `// ① 配置文件：src/dialogs/order-form.dialog.ts
+const fields: FormFieldConfig[] = [
+  { prop: 'id', label: '订单号', control: 'input', required: true },
+  { prop: 'venue', label: '表演场地', control: 'select', options: VENUE_OPTIONS },
+  // …
+]
+export const orderFormDialog = defineDialog<OrderFormParams, OrderFormData>({
+  name: 'order-form',
+  width: 640,
+  title: (params) => (params.id ? \`编辑订单 \${params.id}\` : '新增订单'),
+  fields,
+  model: { drones: 120 },     // 默认值
 })
 
-if (!data) return                // 取消 → null
-await createOrder(data)          // 继续后续逻辑
-// 还能接着弹第二个窗，逻辑保持在同一段：`
+// ② 新增：不传参数就是空白表单
+const data = await orderFormDialog.open()
+if (!data) return              // 取消 → null
+await createOrder(data)
+
+// ③ 编辑：整行数据作为参数 → 同时成为初始值
+const data = await orderFormDialog.open({ ...row })
+
+// ④ 本次专用的确定前钩子（自动 loading，返回 false 不关闭）
+await orderFormDialog.open({}, { beforeOk: async () => (await check()) ? true : false })`
+
 </script>
 
 <template>
@@ -146,6 +110,7 @@ await createOrder(data)          // 继续后续逻辑
       <div class="demo-actions">
         <el-button type="primary" @click="create">新增订单</el-button>
         <el-button @click="createWithBeforeOk">新增（带确定前钩子）</el-button>
+        <el-button @click="createWithCallback">新增（回调风格）</el-button>
       </div>
 
       <div v-if="rows.length" class="demo-table">
@@ -157,7 +122,7 @@ await createOrder(data)          // 继续后续逻辑
           <el-table-column prop="drones" label="无人机" width="90" align="right" />
           <el-table-column label="操作" width="80" align="center">
             <template #default="{ row }">
-              <el-button link type="primary" @click="edit(row)">编辑</el-button>
+              <el-button link type="primary" @click="edit(row as OrderFormData)">编辑</el-button>
             </template>
           </el-table-column>
         </el-table>

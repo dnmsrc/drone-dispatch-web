@@ -74,6 +74,11 @@ export const devRoutes: RouteRecordRaw[] = [
         component: () => import('@/views/dev/demos/dialog-advanced.vue'),
         meta: { title: '弹窗 · 进阶用法' },
       },
+      {
+        path: 'dialog/wrapper',
+        component: () => import('@/views/dev/demos/dialog-wrapper.vue'),
+        meta: { title: '弹窗 · 包裹器机制' },
+      },
     ],
   },
 ]

@@ -1,13 +1,16 @@
 <script setup lang="ts">
 // 弹窗内容组件示例：选中订单后通过 useDialogContext().close(row) 回传结果
-// 这个组件不需要知道自己是"弹窗"，只管把选中项交出去
+// 这个组件不需要知道自己是"弹窗"，只管把选中项交出去。
+// 也支持外部通过 params 传 keyword（包裹器会把 params 作为 props 传进来），用作初始搜索词。
 import { computed, ref } from 'vue'
 import { useDialogContext } from '@/components/pro'
 import { ORDER_STATUS_MAP, mockOrders } from '../mock'
 import type { MockOrder } from '../mock'
 
+const props = defineProps<{ keyword?: string }>()
+
 const dialog = useDialogContext<MockOrder>()
-const keyword = ref('')
+const keyword = ref(props.keyword ?? '')
 
 const rows = computed(() => {
   const text = keyword.value.trim().toLowerCase()

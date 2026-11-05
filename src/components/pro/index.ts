@@ -10,20 +10,21 @@ export { default as ProField } from './ProField.vue'
 export { default as ProTable } from './ProTable.vue'
 export { default as ProSearch } from './ProSearch.vue'
 
-// 命令式弹窗（script 里调用，不需要在 template 中挂组件）
-export {
-  openDialog,
-  confirmDialog,
-  openFormDialog,
-  useDialogContext,
-  setDialogAppContext,
-} from './dialog'
+// 弹窗包裹器：配置文件里 defineDialog，业务里 .open / .close / .destroy
+export { defineDialog, confirmDialog, useDialogContext, setDialogAppContext } from './dialog'
 export type {
+  ConfirmDialogParams,
+  ConfirmType,
   DialogAction,
+  DialogCallbackArg,
+  DialogCallbacks,
+  DialogContent,
   DialogContext,
-  DialogOptions,
-  FormDialogOptions,
-  ConfirmDialogOptions,
+  DialogDefinition,
+  DialogDisplayOptions,
+  DialogFormOptions,
+  DialogValue,
+  DialogWrapper,
 } from './dialog'
 
 export { CONTROL_TYPES } from './types'

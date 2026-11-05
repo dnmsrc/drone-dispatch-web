@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────
 // 弹窗上下文：内容组件可通过 inject 拿到"关闭/取消/loading"能力，
-// 与 openDialog 注入给组件的 props.dialog 是同一个对象。
+// 与 defineDialog 注入给组件的 props.dialog 是同一个对象。
 // ─────────────────────────────────────────────────────────────
 import { inject } from 'vue'
 import type { InjectionKey } from 'vue'

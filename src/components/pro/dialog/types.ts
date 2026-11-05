@@ -1,30 +1,31 @@
 // ─────────────────────────────────────────────────────────────
-// 命令式弹窗（ProDialog）类型契约
+// 弹窗（ProDialog）类型契约 —— 包裹器模式
 //
-// 设计目标：把"打开弹窗 → 用户操作 → 拿到结果 → 继续执行"写成一段顺序代码，
-// 不再需要在 template 里挂 <xxx-dialog v-model:visible> 和一堆 visible / loading 变量。
+// 用法分两步：
+//   1) 每个弹窗写一个「配置文件」（xxx.dialog.ts），用 defineDialog 把弹窗包起来：
 //
-// 与外界的交互只有两种写法（都支持，可混用）：
-//   1) Promise： const result = await openDialog({ ... })   → 结果为 null 表示取消/关闭
-//   2) 回调：   openDialog({ ..., onOk: (v) => { ... } })
+//        export const orderDialog = defineDialog({ name: 'order', component: OrderDialog, title: '订单' })
 //
-// 内容来源四种，优先级 component > fields > render > content：
-//   - component：自定义内容组件（组件内通过 props.dialog 或 useDialogContext() 主动关闭并回传值）
-//   - fields：  配置式表单，复用 ProForm，确定时先校验再回传 model
-//   - render：  渲染函数
-//   - content： 文本 / VNode / 返回 VNode 的函数
+//   2) 业务代码直接引入这个配置文件，用包裹器提供的方法：
+//
+//        import { orderDialog } from '@/dialogs/order.dialog'
+//        orderDialog.open(params, { onOk, onCancel })   // 打开
+//        orderDialog.close()                            // 程序化关闭
+//        orderDialog.destroy()                          // 立即销毁（不播关闭动画）
+//
+// 弹窗组件本身不认识"弹窗"这件事，它通过 useDialogContext() 或 props.dialog 拿到
+// close / cancel / setLoading，主动把结果交回调用方。
 // ─────────────────────────────────────────────────────────────
 import type { Component, VNodeChild } from 'vue'
 import type { FormFieldConfig } from '../types'
 
-/** 弹窗关闭动作：确定按钮 / 取消按钮 / 右上角关闭（含遮罩、ESC） */
+/** 弹窗关闭动作：确定按钮 / 取消按钮 / 右上角关闭（含遮罩、ESC）/ 程序化关闭 */
 export type DialogAction = 'ok' | 'cancel' | 'close'
 
 /**
- * 注入给弹窗内容组件的上下文（两种获取方式）：
- *   - props：在组件里声明 `props: ['dialog']`
+ * 注入给弹窗内容组件的上下文（两种获取方式，指向同一个对象）：
+ *   - props：组件里声明 `props: ['dialog']`
  *   - inject：`const dialog = useDialogContext()!`
- * 两者指向同一个对象。
  */
 export interface DialogContext<T = unknown> {
   /** 关闭弹窗并把结果交回调用方（等价于点"确定"） */
@@ -40,14 +41,20 @@ export interface DialogContext<T = unknown> {
 /** 弹窗内容：文本、VNode、或返回 VNode 的函数 */
 export type DialogContent = string | VNodeChild | (() => VNodeChild)
 
-/** 所有弹窗共用的配置 */
-export interface DialogCommonOptions {
+/**
+ * 配置项取值：可以写死，也可以写成函数按「本次 open 的参数」动态计算。
+ * 例：title: (params) => (params.id ? `编辑订单 ${params.id}` : '新增订单')
+ */
+export type DialogValue<T, P> = T | ((params: P) => T)
+
+/** 弹窗外观配置（与内容无关的部分） */
+export interface DialogDisplayOptions<P = Record<string, unknown>> {
   /** 标题 */
-  title?: string
+  title?: DialogValue<string, P>
   /** 标题下方的补充说明（灰色小字） */
-  description?: string
+  description?: DialogValue<string, P>
   /** 宽度：数字按 px，默认 480 */
-  width?: string | number
+  width?: DialogValue<string | number, P>
   /** 距顶距离，默认由 Element 决定 */
   top?: string
   /** 全屏 */
@@ -68,70 +75,137 @@ export interface DialogCommonOptions {
   zIndex?: number
   /** 附加到弹窗根元素的类名 */
   class?: string
-  /** 是否显示底部按钮区，默认 true（自定义内容想完全自管交互时传 false） */
+  /** 是否显示底部按钮区，默认 true（内容想自管交互时传 false） */
   showFooter?: boolean
   /** 确定按钮文字，默认"确定" */
-  okText?: string
+  okText?: DialogValue<string, P>
   /** 取消按钮文字，默认"取消" */
-  cancelText?: string
+  cancelText?: DialogValue<string, P>
   /** 确定按钮类型，默认 primary */
-  okType?: 'primary' | 'success' | 'warning' | 'danger' | 'info'
+  okType?: DialogValue<'primary' | 'success' | 'warning' | 'danger' | 'info', P>
   /** 透传给确定按钮的属性（如 disabled、plain） */
   okButtonProps?: Record<string, unknown>
   /** 透传给取消按钮的属性 */
   cancelButtonProps?: Record<string, unknown>
-  /**
-   * 点确定时的前置钩子：
-   *   - 返回 false → 不关闭（保留弹窗，通常配合 ElMessage 提示）
-   *   - 抛异常 → 同样不关闭，异常由业务自己提示
-   *   - 返回 Promise 时确定按钮自动进入 loading
-   */
-  beforeOk?: () => boolean | void | Promise<boolean | void>
-  /** 确定后的回调（与 Promise 风格并存，两者都会触发；值类型见泛型 T） */
-  onOk?: (value: unknown) => void
-  /** 点取消按钮后的回调 */
-  onCancel?: () => void
-  /** 右上角关闭 / 遮罩 / ESC 关闭后的回调；不传时回退到 onCancel */
-  onClose?: () => void
 }
 
-/** openDialog 的配置 */
-export interface DialogOptions<T = unknown> extends DialogCommonOptions {
-  /** 内容组件（优先级最高） */
-  component?: Component
-  /** 传给内容组件的 props（会自动追加 dialog 上下文与 close/cancel 事件） */
-  props?: Record<string, unknown>
-  /** 渲染函数 */
-  render?: () => VNodeChild
-  /** 纯内容 */
-  content?: DialogContent
-  /** 配置式表单字段（走 ProForm，确定时校验通过才关闭） */
-  fields?: FormFieldConfig[]
-  /** 表单初始值 */
-  model?: Record<string, unknown>
-  /** 表单标签宽度，默认 96px */
+/** 表单模式的布局配置（只有 fields 模式用得上） */
+export interface DialogFormOptions {
+  /** 标签宽度，默认 96px */
   labelWidth?: string | number
-  /** 表单默认栅格宽度，默认 24（单列） */
+  /** 默认栅格宽度，默认 24（单列） */
   defaultSpan?: number
-  /** 表单栅格间距，默认 16 */
+  /** 栅格间距，默认 16 */
   gutter?: number
   /** 表单尺寸 */
   size?: 'large' | 'default' | 'small'
+}
+
+/**
+ * 包裹器定义：describe 一个弹窗的全部静态信息。
+ * 内容来源四种，优先级 component > fields > render > content。
+ */
+export interface DialogDefinition<P = Record<string, unknown>>
+  extends DialogDisplayOptions<P>,
+    DialogFormOptions {
+  /** 包裹器名字：日志与调试用 */
+  name?: string
+  /** 内容来源①：自定义弹窗组件（组件内用 useDialogContext() 关闭并回传值） */
+  component?: Component
+  /** 内容来源②：配置式表单字段（复用 ProForm，确定时先校验再回传 model） */
+  fields?: FormFieldConfig[]
+  /** 内容来源③：渲染函数 */
+  render?: (params: P) => VNodeChild
+  /** 内容来源④：文本 / VNode（也可写成 (params) => …） */
+  content?: DialogContent | ((params: P) => DialogContent)
+  /** 传给内容组件的默认 props（open 时传入的 params 会覆盖同名项） */
+  props?: Record<string, unknown>
+  /** 表单模式的默认值（open 的 params 优先） */
+  model?: Record<string, unknown> | ((params: P) => Record<string, unknown>)
   /** 非表单模式下"确定"的返回值，默认 true */
-  okValue?: T
+  okValue?: unknown | ((params: P) => unknown)
+  /** 确定前钩子：返回 false / 抛异常都不关闭；返回 Promise 时按钮自动 loading */
+  beforeOk?: (params: P) => boolean | void | Promise<boolean | void>
 }
 
-/** 表单弹窗：fields 必填，返回值为表单数据 */
-export type FormDialogOptions<T = Record<string, unknown>> = DialogOptions<T> & {
-  fields: FormFieldConfig[]
+/** open 时传入的回调（与 Promise 结果并存，两者都会触发） */
+export interface DialogCallbacks<R = unknown> {
+  /** 点确定 / 内容组件 close(value) 之后 */
+  onOk?: (result: R) => void
+  /** 点取消按钮之后 */
+  onCancel?: () => void
+  /** 右上角关闭 / 遮罩 / ESC 之后；不传时回退到 onCancel */
+  onClose?: () => void
+  /** 本次打开专用的确定前钩子（覆盖定义里的 beforeOk） */
+  beforeOk?: () => boolean | void | Promise<boolean | void>
 }
 
-/** 确认框配置 */
-export interface ConfirmDialogOptions extends DialogCommonOptions {
-  /** 提示内容 */
-  content?: string
-  /** 语义类型，决定图标与确定按钮颜色，默认 warning */
-  type?: 'warning' | 'danger' | 'info' | 'success'
-  /** 自定义图标组件（不传按 type 取内置图标） */
-  icon?: Component
+/**
+ * 第二个参数的两种写法：
+ *   - 回调对象：{ onOk, onCancel, onClose, beforeOk }
+ *   - 单个函数：关闭时调用一次，确定传结果值、取消/关闭传 null
+ */
+export type DialogCallbackArg<R = unknown> = DialogCallbacks<R> | ((result: R | null) => void)
+
+/** defineDialog 的返回值：包裹器实例 */
+export interface DialogWrapper<P = Record<string, unknown>, R = unknown> {
+  /** 包裹器名字 */
+  readonly name: string
+  /** 当前是否有打开的实例（在 computed 里读取可响应） */
+  readonly isOpen: boolean
+  /**
+   * 打开弹窗。
+   * @param params 传给内容组件的 props / 表单初始值 / 渲染函数参数
+   * @param callbacks 回调对象或单个函数
+   * @returns 确定时 resolve 结果值，取消 / 关闭时 resolve null
+   */
+  open: (params?: P, callbacks?: DialogCallbackArg<R>) => Promise<R | null>
+  /**
+   * 程序化关闭：close() 视为取消（结果 null）；close(result) 视为确定并把 result 交回。
+   * @returns 是否真的关闭了一个打开的弹窗
+   */
+  close: (result?: R) => boolean
+  /** 立即销毁（不播关闭动画），Promise 以 null 结束；用于页面卸载/强制重置 */
+  destroy: () => boolean
+}
+
+/** 宿主组件的配置：由 wrapper 把 DialogDefinition 解析成具体值后传入 */
+export interface DialogHostOptions {
+  title?: string
+  description?: string
+  width?: string | number
+  top?: string
+  fullscreen?: boolean
+  modal?: boolean
+  closeOnClickModal?: boolean
+  closeOnPressEscape?: boolean
+  showClose?: boolean
+  draggable?: boolean
+  alignCenter?: boolean
+  zIndex?: number
+  class?: string
+  showFooter?: boolean
+  okText?: string
+  cancelText?: string
+  okType?: 'primary' | 'success' | 'warning' | 'danger' | 'info'
+  okButtonProps?: Record<string, unknown>
+  cancelButtonProps?: Record<string, unknown>
+  component?: Component
+  fields?: FormFieldConfig[]
+  render?: () => VNodeChild
+  content?: string | VNodeChild
+  props?: Record<string, unknown>
+  model?: Record<string, unknown>
+  okValue?: unknown
+  beforeOk?: () => boolean | void | Promise<boolean | void>
+  labelWidth?: string | number
+  defaultSpan?: number
+  gutter?: number
+  size?: 'large' | 'default' | 'small'
+}
+
+/** 宿主暴露给外部的控制能力（wrapper.close / destroy 用） */
+export interface DialogHostApi {
+  /** 触发一次关闭：action 决定结果语义，value 为回传值 */
+  close: (action: DialogAction, value?: unknown) => void
 }

@@ -1,27 +1,29 @@
 <script setup lang="ts">
-// 嵌套弹窗示例：本身作为弹窗内容组件，内部再打开一个弹窗
+// 嵌套弹窗示例：本身作为弹窗内容组件，内部再打开 innerDialog
 // 用来验证层级（内层高于外层）、以及 showFooter=false 时内容自己控制关闭
 import { ElMessage } from 'element-plus'
-import { openDialog, useDialogContext } from '@/components/pro'
+import { useDialogContext } from '@/components/pro'
+import { innerDialog } from '../dialogs/inner.dialog'
 
 const dialog = useDialogContext<string>()
 
 /** 在外层弹窗里再开一个弹窗（不 await，用回调拿结果） */
 function openNested() {
-  openDialog({
-    title: '内层弹窗',
-    content: '我是从外层弹窗里再打开的弹窗。层级自动高于外层，下拉框等浮层也不受影响。',
-    width: 420,
-    okText: '确认',
-    onOk: () => ElMessage.success('内层弹窗点了确定'),
-  })
+  void innerDialog.open(
+    {},
+    {
+      onOk: () => ElMessage.success('内层弹窗点了确定'),
+      onCancel: () => ElMessage.info('内层弹窗被取消'),
+    },
+  )
 }
 </script>
 
 <template>
   <div class="nested-demo">
     <p class="nested-demo-text">
-      外层弹窗（showFooter=false，底部按钮由内容自己提供）。点下面的按钮会在外层之上再打开一个弹窗。
+      外层弹窗（showFooter=false，底部按钮由内容自己提供）。
+      点下面的按钮会用「内层弹窗的包裹器」再打开一个弹窗，层级自动高于外层。
     </p>
     <div class="nested-demo-actions">
       <el-button type="primary" @click="openNested">在外层再开一个弹窗</el-button>
