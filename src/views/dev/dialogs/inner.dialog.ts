@@ -1,16 +1,17 @@
 // ─────────────────────────────────────────────────────────────
-// 演示用弹窗配置文件：嵌套弹窗的内层
+// 弹窗配置文件：嵌套弹窗的内层（与 InnerDialog.vue 平行）
 //
-// 单独一个配置文件，方便被任意弹窗/页面复用；这里被 DialogNestedDemo 引用。
+// 单独一个文件，方便被任意弹窗 / 页面复用；这里被 NestedOuterDialog 引用。
 // ─────────────────────────────────────────────────────────────
-import { defineDialog } from '@/components/pro'
+import { wrapDialog } from '@/components/pro'
+import InnerDialog from './InnerDialog.vue'
 
-export const innerDialog = defineDialog<{ content?: string }, boolean>({
+/** 内层弹窗参数 */
+export interface InnerDialogParams {
+  title?: string
+  content?: string
+}
+
+export const innerDialog = wrapDialog<InnerDialogParams, boolean>(InnerDialog, {
   name: 'inner',
-  width: 420,
-  title: '内层弹窗',
-  content: (params) =>
-    params.content ?? '我是从外层弹窗里再打开的弹窗。层级自动高于外层，下拉框等浮层也不受影响。',
-  okText: '确认',
-  okValue: true,
 })

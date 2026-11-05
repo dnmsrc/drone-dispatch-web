@@ -42,30 +42,30 @@ function pickOrderWithCallback() {
   )
 }
 
-const code = `// ① 配置文件：src/dialogs/order-picker.dialog.ts
-import OrderPicker from '@/views/order/OrderPicker.vue'
-export const orderPickerDialog = defineDialog<OrderPickerParams, MockOrder>({
+const code = `// ① 业务组件：OrderPickerDialog.vue —— 弹窗里放表格，正常写
+const { visible, params, close } = useDialog<OrderPickerParams, MockOrder>()
+
+<el-dialog v-model="visible" title="选择订单" width="840px">
+  <el-table :data="rows" @row-dblclick="pick"> … </el-table>
+</el-dialog>
+function pick(row) { close(row) }   // 关闭并回传选中的行
+
+// ② 平行位置的 ts：order-picker.dialog.ts
+export const orderPickerDialog = wrapDialog<OrderPickerParams, MockOrder>(OrderPickerDialog, {
   name: 'order-picker',
-  component: OrderPicker,     // 普通组件，不需要知道自己是弹窗
-  title: '选择订单',
-  width: 840,
-  showFooter: false,          // 底部按钮由内容组件自己给
 })
 
-// ② OrderPicker.vue：只负责把选中项交出去
-const dialog = useDialogContext<MockOrder>()
-function pick(row: MockOrder) {
-  dialog?.close(row)          // 关闭并把 row 交回调用方
-}
-
-// ③ 业务里：await 结果 → 继续
-const picked = await orderPickerDialog.open()
+// ③ 业务里：await 结果 → 接着往下做
+const picked = await orderPickerDialog.open({ keyword: '滨江' })
 if (!picked) return
+await pushNotify(picked)
 
 // ④ 也可以只传回调（第二个参数是函数时，关闭时调用一次）
 orderPickerDialog.open({ keyword: '滨江' }, (picked) => {
   if (picked) console.log(picked.id)
-})`
+})
+`
+
 
 </script>
 
@@ -73,7 +73,7 @@ orderPickerDialog.open({ keyword: '滨江' }, (picked) => {
   <div class="demo-page">
     <DemoBlock
       title="包裹器里放任意组件"
-      desc="组件通过 useDialogContext() 或 props.dialog 主动关闭并回传值"
+      desc="组件自己写 el-dialog，用 useDialog().close(row) 主动关闭并回传值"
       :code="code"
     >
       <div class="demo-actions">

@@ -60,28 +60,38 @@ function callbackStyle() {
   )
 }
 
-const code = `// ① 弹窗的"配置文件"：src/dialogs/message.dialog.ts
-import { defineDialog } from '@/components/pro'
-export const messageDialog = defineDialog<MessageDialogParams, boolean>({
+const code = `// ① 业务弹窗组件：MessageDialog.vue —— 正常写 el-dialog
+const { visible, params, close, cancel } = useDialog<MessageDialogParams, boolean>()
+
+<el-dialog v-model="visible" :title="params.title" width="480px">
+  {{ params.content }}
+  <template #footer>
+    <el-button @click="cancel">取消</el-button>
+    <el-button type="primary" @click="close(true)">知道了</el-button>
+  </template>
+</el-dialog>
+
+// ② 平行位置的 ts：message.dialog.ts —— 包裹器包成句柄
+import MessageDialog from './MessageDialog.vue'
+export const messageDialog = wrapDialog<MessageDialogParams, boolean>(MessageDialog, {
   name: 'message',
-  title: (params) => params.title ?? '提示',
-  content: (params) => params.content,
-  okValue: true,          // 非表单模式：确定时返回的值
 })
 
-// ② 业务里只认包裹器：await 拿结果，代码按顺序写
-import { messageDialog } from '@/dialogs/message.dialog'
-const result = await messageDialog.open({ title: '普通弹窗', content: '…' })
-if (result === null) return       // 取消 / 关闭
+// ③ 业务里只认这个 ts：await 拿结果，代码按顺序写
+import { messageDialog } from './message.dialog'
+const ok = await messageDialog.open({ title: '普通弹窗', content: '…' })
+if (ok === null) return       // 取消 / 关闭
 
-// ③ 回调风格（不 await 也行）
+// ④ 回调风格（不 await 也行）
 messageDialog.open(
   { title: '回调风格', content: '…' },
   { onOk: () => save(), onCancel: () => ElMessage.info('已取消') },
 )
 
-// ④ 内置确认框同样是包裹器：.open 返回 true / null
-const ok = await confirmDialog.open({ content: '确认删除？', type: 'danger' })`
+// ⑤ 内置确认框同样是包裹器：.open 返回 true / null
+const ok = await confirmDialog.open({ content: '确认删除？', type: 'danger' })
+`
+
 
 </script>
 

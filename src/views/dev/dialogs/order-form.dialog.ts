@@ -1,10 +1,10 @@
 // ─────────────────────────────────────────────────────────────
-// 演示用弹窗配置文件：订单表单弹窗（fields 配置式表单）
+// 弹窗配置文件：订单表单弹窗（配置式表单，复用内置 FormDialog 组件）
 //
-// 字段配置与 ProForm 完全一致；确定时先校验，校验通过才关闭并把表单数据交回。
-// 编辑场景把整行数据作为 params 传进来，标题会自动变成「编辑订单 xxx」。
+// createFormDialog 就是 wrapDialog(FormDialog, { props: { fields, … } }) 的便捷写法。
+// 想完全自己掌控打开/关闭，就像 MessageDialog.vue 那样写自己的组件 + wrapDialog。
 // ─────────────────────────────────────────────────────────────
-import { defineDialog } from '@/components/pro'
+import { createFormDialog } from '@/components/pro'
 import type { FormFieldConfig } from '@/components/pro'
 import { VENUE_OPTIONS } from '../mock'
 
@@ -20,8 +20,11 @@ export interface OrderFormData {
   remark: string
 }
 
-/** 打开时的参数 = 表单初始值（新增传空对象，编辑传整行） */
-export type OrderFormParams = Partial<OrderFormData>
+/** 打开时的参数（放进表单的初始值；新增传空对象，编辑传整行） */
+export type OrderFormParams = Partial<OrderFormData> & {
+  /** 覆盖标题：不传时用配置里的标题 */
+  title?: string
+}
 
 const fields: FormFieldConfig[] = [
   {
@@ -53,16 +56,15 @@ const fields: FormFieldConfig[] = [
 
 /**
  * 订单表单弹窗：确定返回表单数据，取消 / 关闭返回 null。
- * 标题是函数形态 —— 带 id 参数时显示「编辑订单」。
+ * 打开时传 { ...row, title: '编辑订单 xxx' } 就是编辑，不传 title 就是新增。
  */
-export const orderFormDialog = defineDialog<OrderFormParams, OrderFormData>({
+export const orderFormDialog = createFormDialog<OrderFormData>({
   name: 'order-form',
+  title: '新增订单',
+  description: '确定时先校验；校验通过才关闭，并把表单数据交回',
   width: 640,
   labelWidth: '96px',
   defaultSpan: 24,
-  title: (params) => (params.id ? `编辑订单 ${params.id}` : '新增订单'),
-  description: '确定时先校验；校验通过才关闭，并把表单数据交回',
   fields,
   model: { drones: 120, amount: 16800 },
-  okValue: true,
 })

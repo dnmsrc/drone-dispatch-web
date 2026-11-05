@@ -1,27 +1,32 @@
 // ─────────────────────────────────────────────────────────────
 // 弹窗统一出口
 //
-//   import { defineDialog, confirmDialog, useDialogContext } from '@/components/pro'
+//   import { wrapDialog, useDialog, confirmDialog, createFormDialog } from '@/components/pro'
 //
-// 用法（包裹器模式）：
-//   ① 弹窗配置文件里用 defineDialog 把弹窗包起来并导出
-//   ② 业务里引入该配置文件，调用 .open(params, callbacks) / .close() / .destroy()
+// 用法（包裹器架构）：
+//   ① 业务正常写弹窗组件（自己写 <el-dialog>，用 useDialog() 拿 visible/close）
+//   ② 与组件平行位置写 xxx.dialog.ts，用 wrapDialog 把它包成句柄并导出
+//   ③ 业务代码 import 这个 ts，调 .open() / .close() / .destroy()
 // ─────────────────────────────────────────────────────────────
-export { defineDialog } from './wrapper'
+export { wrapDialog } from './wrap'
+export { useDialog } from './context'
 export { confirmDialog } from './confirm'
-export { useDialogContext } from './context'
-export { setDialogAppContext } from './mount'
+export { createFormDialog } from './form'
+export { setDialogAppContext } from './runner'
 
-export type { ConfirmDialogParams, ConfirmType } from './confirm'
+/** 内置组件：想自定义标题栏/布局时也可以直接复用 */
+export { default as FormDialog } from './FormDialog.vue'
+export { default as ConfirmDialog } from './ConfirmDialog.vue'
+
+export type { CreateFormDialogOptions } from './form'
 export type {
+  ConfirmDialogParams,
   DialogAction,
   DialogCallbackArg,
   DialogCallbacks,
-  DialogContent,
-  DialogContext,
-  DialogDefinition,
-  DialogDisplayOptions,
-  DialogFormOptions,
-  DialogValue,
-  DialogWrapper,
+  DialogController,
+  DialogExposed,
+  DialogRuntime,
+  FormDialogProps,
+  WrapDialogOptions,
 } from './types'

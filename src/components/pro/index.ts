@@ -10,21 +10,27 @@ export { default as ProField } from './ProField.vue'
 export { default as ProTable } from './ProTable.vue'
 export { default as ProSearch } from './ProSearch.vue'
 
-// 弹窗包裹器：配置文件里 defineDialog，业务里 .open / .close / .destroy
-export { defineDialog, confirmDialog, useDialogContext, setDialogAppContext } from './dialog'
+// 弹窗包裹器：业务正常写弹窗组件 + 平行位置的 ts 配置文件，业务里 .open / .close / .destroy
+export {
+  wrapDialog,
+  useDialog,
+  confirmDialog,
+  createFormDialog,
+  setDialogAppContext,
+  FormDialog,
+  ConfirmDialog,
+} from './dialog'
 export type {
   ConfirmDialogParams,
-  ConfirmType,
+  CreateFormDialogOptions,
   DialogAction,
   DialogCallbackArg,
   DialogCallbacks,
-  DialogContent,
-  DialogContext,
-  DialogDefinition,
-  DialogDisplayOptions,
-  DialogFormOptions,
-  DialogValue,
-  DialogWrapper,
+  DialogController,
+  DialogExposed,
+  DialogRuntime,
+  FormDialogProps,
+  WrapDialogOptions,
 } from './dialog'
 
 export { CONTROL_TYPES } from './types'

@@ -1,16 +1,21 @@
 <script setup lang="ts">
-// 弹窗内容组件示例：选中订单后通过 useDialogContext().close(row) 回传结果
-// 这个组件不需要知道自己是"弹窗"，只管把选中项交出去。
-// 也支持外部通过 params 传 keyword（包裹器会把 params 作为 props 传进来），用作初始搜索词。
+// ─────────────────────────────────────────────────────────────
+// 业务弹窗组件示例：弹窗里放表格，选中一行后关闭并回传
+//
+// 和普通列表组件一样：自己写 <el-dialog>，自己写搜索框和表格；
+// 选中后调 close(row) —— 参数（初始搜索词）从 useDialog().params 拿。
+// ─────────────────────────────────────────────────────────────
 import { computed, ref } from 'vue'
-import { useDialogContext } from '@/components/pro'
+import { useDialog } from '@/components/pro'
 import { ORDER_STATUS_MAP, mockOrders } from '../mock'
 import type { MockOrder } from '../mock'
+import type { OrderPickerParams } from './order-picker.dialog'
 
-const props = defineProps<{ keyword?: string }>()
+defineOptions({ inheritAttrs: false })
 
-const dialog = useDialogContext<MockOrder>()
-const keyword = ref(props.keyword ?? '')
+const { visible, params, close, cancel } = useDialog<OrderPickerParams, MockOrder>()
+
+const keyword = ref(params.keyword ?? '')
 
 const rows = computed(() => {
   const text = keyword.value.trim().toLowerCase()
@@ -23,13 +28,22 @@ const rows = computed(() => {
   )
 })
 
+/** 选中一行：关闭弹窗并把这一行交回调用方（= 点"确定"） */
 function pick(row: unknown) {
-  dialog?.close(row as MockOrder)
+  close(row as MockOrder)
 }
 </script>
 
 <template>
-  <div class="order-picker">
+  <el-dialog
+    v-model="visible"
+    class="pro-dialog"
+    :title="params.title ?? '选择订单'"
+    width="840px"
+    align-center
+  >
+    <p v-if="params.description" class="pro-dialog-desc">{{ params.description }}</p>
+
     <el-input
       v-model="keyword"
       class="order-picker-search"
@@ -60,7 +74,11 @@ function pick(row: unknown) {
     </el-table>
 
     <div class="order-picker-tip">双击任意一行或点「选择」→ 关闭弹窗并把这一行交回调用方</div>
-  </div>
+
+    <template #footer>
+      <el-button @click="cancel">取消</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped>

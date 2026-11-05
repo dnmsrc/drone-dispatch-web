@@ -28,20 +28,18 @@ async function create() {
 /** 确定前钩子：本次 open 传入 beforeOk（覆盖定义里的），返回 false 保持弹窗打开 */
 async function createWithBeforeOk() {
   attempts.value = 0
-  const data = await orderFormDialog.open(
-    {},
-    {
-      beforeOk: async () => {
-        await sleep(700)
-        if (attempts.value === 0) {
-          attempts.value += 1
-          ElMessage.warning('模拟：服务端校验未通过，弹窗保持打开（填完表单再点确定）')
-          return false
-        }
-        return true
-      },
+  const data = await orderFormDialog.open({
+    // beforeOk 作为本次 open 的参数传给弹窗组件，组件在确定时先跑它
+    beforeOk: async () => {
+      await sleep(700)
+      if (attempts.value === 0) {
+        attempts.value += 1
+        ElMessage.warning('模拟：服务端校验未通过，弹窗保持打开（填完表单再点确定）')
+        return false
+      }
+      return true
     },
-  )
+  })
   if (!data) return
   rows.value.unshift(data)
   lastResult.value = JSON.stringify(data, null, 2)
@@ -66,23 +64,25 @@ function createWithCallback() {
 
 /** 编辑：把整行数据作为 params 传入，标题自动变成「编辑订单 xxx」 */
 async function edit(row: OrderFormData) {
-  const data = await orderFormDialog.open({ ...row })
+  // 编辑：整行作为初始值，title 一起传（组件里 params.title 优先于配置的标题）
+  const data = await orderFormDialog.open({ ...row, title: `编辑订单 ${row.id}` })
   if (!data) return
   Object.assign(row, data)
   lastResult.value = JSON.stringify(data, null, 2)
   ElMessage.success('已保存（演示）')
 }
 
-const code = `// ① 配置文件：src/dialogs/order-form.dialog.ts
+const code = `// ① 平行配置：src/views/dev/dialogs/order-form.dialog.ts
 const fields: FormFieldConfig[] = [
   { prop: 'id', label: '订单号', control: 'input', required: true },
   { prop: 'venue', label: '表演场地', control: 'select', options: VENUE_OPTIONS },
   // …
 ]
-export const orderFormDialog = defineDialog<OrderFormParams, OrderFormData>({
+// createFormDialog = wrapDialog(内置 FormDialog, { props: { fields, … } })
+export const orderFormDialog = createFormDialog<OrderFormData>({
   name: 'order-form',
+  title: '新增订单',
   width: 640,
-  title: (params) => (params.id ? \`编辑订单 \${params.id}\` : '新增订单'),
   fields,
   model: { drones: 120 },     // 默认值
 })
@@ -92,11 +92,13 @@ const data = await orderFormDialog.open()
 if (!data) return              // 取消 → null
 await createOrder(data)
 
-// ③ 编辑：整行数据作为参数 → 同时成为初始值
-const data = await orderFormDialog.open({ ...row })
+// ③ 编辑：整行数据作为参数 → 同时成为初始值（标题一起传）
+const data = await orderFormDialog.open({ ...row, title: '编辑订单 ' + row.id })
 
-// ④ 本次专用的确定前钩子（自动 loading，返回 false 不关闭）
-await orderFormDialog.open({}, { beforeOk: async () => (await check()) ? true : false })`
+// ④ 确定前钩子：作为本次 open 的参数传给组件（按钮自动 loading，返回 false 不关闭）
+await orderFormDialog.open({ beforeOk: async () => (await check()) ? true : false })
+`
+
 
 </script>
 

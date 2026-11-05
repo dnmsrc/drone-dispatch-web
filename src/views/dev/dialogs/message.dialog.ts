@@ -1,29 +1,29 @@
 // ─────────────────────────────────────────────────────────────
-// 演示用弹窗配置文件：普通消息弹窗
+// 弹窗配置文件（与 MessageDialog.vue 平行的位置）
 //
-// 这就是"包裹器"的用法：一个弹窗一个配置文件，导出包裹器实例。
-// 业务里 import 这个文件，就能用 messageDialog.open(...) / .close() / .destroy()。
+// 包裹器把业务组件包成一个句柄，导出后业务里直接：
+//   import { messageDialog } from './message.dialog'
+//   const ok = await messageDialog.open({ title: '提示', content: '…' })
 // ─────────────────────────────────────────────────────────────
-import { defineDialog } from '@/components/pro'
+import { wrapDialog } from '@/components/pro'
+import MessageDialog from './MessageDialog.vue'
 
-/** 打开时传入的参数（也可以理解为弹窗内容组件的 props） */
+/** 打开时传入的参数（组件里通过 useDialog().params 拿到） */
 export interface MessageDialogParams {
+  /** 标题，默认「提示」 */
   title?: string
+  /** 标题下方的灰色说明 */
   description?: string
+  /** 正文 */
   content: string
+  /** 确定按钮文字，默认「知道了」 */
   okText?: string
 }
 
 /**
- * 消息弹窗：确定返回 true，取消 / 关闭返回 null。
- * 配置项写成函数时，每次 open 都会按本次参数重新计算（这里标题、文案、按钮文字都可变）。
+ * 消息弹窗：确定回传 true，取消 / 关闭回传 null。
+ * 组件自己定义了 open/close 吗？没有 —— 走的包裹器默认动作（visible 置 true/false）。
  */
-export const messageDialog = defineDialog<MessageDialogParams, boolean>({
+export const messageDialog = wrapDialog<MessageDialogParams, boolean>(MessageDialog, {
   name: 'message',
-  width: 480,
-  title: (params) => params.title ?? '提示',
-  description: (params) => params.description ?? '',
-  content: (params) => params.content,
-  okText: (params) => params.okText ?? '知道了',
-  okValue: true,
 })

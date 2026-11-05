@@ -41,7 +41,7 @@ drone-dispatch-web/
     ├── router/         # index.ts 业务路由（menuRoutes 与侧边栏同源）；dev.ts 测试场路由（仅开发环境）
     ├── layout/         # 布局框架：侧边栏 / 顶栏 / 多页签 / 内容区
     ├── components/
-    │   ├── pro/        # 配置式公共组件（ProForm / ProTable / ProSearch / dialog 命令式弹窗）★
+    │   ├── pro/        # 配置式公共组件（ProForm / ProTable / ProSearch / dialog 弹窗包裹器）★
     │   └── PagePlaceholder.vue
     ├── stores/         # pinia（tags-view 多页签状态）
     ├── config/         # 品牌常量（静态，后续改为接口拉取）
@@ -112,12 +112,12 @@ Element 的变量定制必须早于其样式生效，控件与组件重写必须
 
 `src/components/pro/` 里是三个配置驱动组件：**外部只传配置数据，内部负责布局与渲染**，业务页面不再手写
 `el-table-column` / `el-form-item` 堆叠。控件用字符串名声明（`control: 'input'` / `'select'` …），
-由 `ProField` 映射到对应 Element 控件。另外提供**弹窗包裹器**（`defineDialog`）：每个弹窗写一个
-配置文件，用 `defineDialog` 把弹窗包成带 `open` / `close` / `destroy` 的对象，业务里引入配置文件直接调用，
+由 `ProField` 映射到对应 Element 控件。另外提供**弹窗包裹器**（`wrapDialog`）：业务正常写弹窗组件，
+旁边一个 ts 配置文件用 `wrapDialog` 把它包成带 `open` / `close` / `destroy` 的对象，业务里引入这个 ts 直接调用，
 详见「弹窗 ProDialog（包裹器）」。
 
 ```ts
-import { ProForm, ProTable, ProSearch, defineDialog, confirmDialog, useDialogContext } from '@/components/pro'
+import { ProForm, ProTable, ProSearch, wrapDialog, useDialog, confirmDialog } from '@/components/pro'
 import type { FormFieldConfig, TableColumn, TableActions, DialogDefinition, DialogWrapper } from '@/components/pro'
 ```
 
@@ -318,49 +318,94 @@ const actions: TableActions = {
 
 ### 弹窗 ProDialog（包裹器）
 
-核心：**一个弹窗 = 一个配置文件 + 一个包裹器对象**。用 `defineDialog` 把弹窗包起来（内容可以是组件、
-配置式表单字段、渲染函数或纯文本），导出后就是一个带 `open` / `close` / `destroy` 的对象。
-业务代码不挂组件、不维护 `visible`，只调包裹器的方法。
+核心：**一个弹窗 = 一个业务弹窗组件 + 一个平行位置的 ts 配置文件**。
+
+- 业务弹窗组件是**完全正常的 Vue 组件**：自己写 `<el-dialog>`、自己的标题 / 按钮 / 布局，自己管 `visible`
+- 组件平行位置放一个 `xxx.dialog.ts`，用 `wrapDialog(组件, { name })` 把组件包成「句柄」
+- 业务代码只 import 这个 ts 文件，调 `.open()` 打开；需要外部控制时用 `.close()` / `.destroy()`
+
+包裹器负责：挂载到 `body`、注入 `visible` / `params` / `close` / `cancel`、收集结果、关闭动画播完后卸载。
+组件负责：长什么样、怎么关。
+
+```
+src/views/order/
+├── OrderDialog.vue          # ① 业务正常写的弹窗组件
+└── OrderDialog.dialog.ts    # ② 平行位置的包裹器配置
+```
+
+```vue
+<!-- ① OrderDialog.vue：正常写弹窗，用 useDialog() 拿运行时能力 -->
+<script setup lang="ts">
+import { useDialog } from '@/components/pro'
+import type { OrderParams, Order } from './OrderDialog.dialog'
+
+const { visible, params, close, cancel } = useDialog<OrderParams, Order>()
+</script>
+
+<template>
+  <el-dialog v-model="visible" title="订单" width="640px">
+    {{ params.content }}
+    <template #footer>
+      <el-button @click="cancel">取消</el-button>
+      <el-button type="primary" @click="close(row)">确定</el-button>
+    </template>
+  </el-dialog>
+</template>
+```
 
 ```ts
-// ① 弹窗配置文件：src/dialogs/order-form.dialog.ts
-import { defineDialog } from '@/components/pro'
-import type { FormFieldConfig } from '@/components/pro'
+// ② OrderDialog.dialog.ts：包裹器把组件包成句柄
+import { wrapDialog } from '@/components/pro'
+import OrderDialog from './OrderDialog.vue'
 
-export const orderFormDialog = defineDialog<OrderFormParams, OrderFormData>({
-  name: 'order-form',
-  title: (params) => (params.id ? `编辑订单 ${params.id}` : '新增订单'), // 配置项可写成函数
-  width: 640,
-  fields: [
-    { prop: 'id', label: '订单号', control: 'input', required: true },
-    { prop: 'venue', label: '表演场地', control: 'select', options: VENUE_OPTIONS },
-    // …
-  ],
-  model: { drones: 120 }, // 表单默认值
-})
-
-// ② 业务里：引入配置文件，直接用包裹器
-import { orderFormDialog } from '@/dialogs/order-form.dialog'
-
-const data = await orderFormDialog.open() // 打开，await 结果
-if (!data) return // 取消 / 关闭 → null
-orderFormDialog.open({ ...row }) // 编辑：params 同时作为表单初始值
-
-orderFormDialog.open({}, {
-  // 回调写法（第二个参数也可以是单个函数）
-  onOk: (data) => save(data),
-  onCancel: () => ElMessage.info('已取消'),
-})
-
-orderFormDialog.close() // 程序化关闭（视为取消）
-orderFormDialog.destroy() // 立即销毁（不等关闭动画）
+export const orderDialog = wrapDialog<OrderParams, Order>(OrderDialog, { name: 'order' })
 ```
+
+```ts
+// ③ 业务里：只认这个 ts 文件
+import { orderDialog } from '@/views/order/OrderDialog.dialog'
+
+const data = await orderDialog.open({ id: 1 }) // 打开，await 结果
+if (!data) return // 取消 / 关闭 → null
+
+orderDialog.open({ id: 2 }, { onOk: (d) => save(d), onCancel: () => ElMessage.info('已取消') })
+orderDialog.close() // 程序化关闭（视为取消）
+orderDialog.close(row) // 程序化关闭并把 row 当「确定」交回
+orderDialog.destroy() // 立即销毁（不等关闭动画）
+```
+
+**useDialog()：组件里能拿到什么**
+
+| 字段 | 说明 |
+|---|---|
+| `visible` | `Ref<boolean>`，绑给 `<el-dialog v-model>`；包裹器据此判断关闭、播放关闭动画 |
+| `params` | 本次 `open` 传入的参数 |
+| `close(result?)` | 关闭并把结果交回调用方（语义 = 点确定）；不传值视为 `true` |
+| `cancel()` | 关闭并标记取消（调用方拿到 `null`） |
+| `setLoading(v)` | 控制按钮 loading（内置组件用，自建组件可忽略） |
+
+**覆盖默认动作**：默认动作很简单（打开 = `visible` 置 `true`，关闭 = `visible` 置 `false` 并 settle）。
+需要更多逻辑时（埋点、拉数据、二次确认）在组件里 `defineExpose({ open, close })`：
+
+```ts
+function open(params) {
+  // 组件自己的准备逻辑
+  visible.value = true // 最后一定要自己显示
+}
+function close(result) {
+  if (result === undefined) cancel()
+  else finish(result) // finish = useDialog().close，负责 settle 结果
+}
+defineExpose({ open, close })
+```
+
+优先级：**组件 `defineExpose` > `wrapDialog` 的 `options.open` / `options.close` > 包裹器默认动作**。
 
 **包裹器方法**
 
 | 方法 | 说明 |
 |---|---|
-| `open(params?, callbacks?)` | 打开。`params` 传给内容组件（即 props）/ 作为表单初始值 / 渲染函数参数；返回 Promise |
+| `open(params?, callbacks?)` | 打开。参数进组件的 `useDialog().params`；返回 Promise |
 | `close(result?)` | 程序化关闭：不传值视为取消（`null`）；传值视为「确定」并把值交回；返回 `boolean` |
 | `destroy()` | 立即销毁（不播关闭动画），Promise 以 `null` 结束；返回 `boolean` |
 | `isOpen` | 当前是否有打开的实例（在 `computed` 里读取可响应） |
@@ -370,55 +415,50 @@ orderFormDialog.destroy() // 立即销毁（不等关闭动画）
 
 | 关闭方式 | Promise 结果 | 回调（与 Promise 并存） |
 |---|---|---|
-| 点确定 | 表单数据 / `okValue`（默认 `true`）/ `dialog.close(value)` 传入值 | `onOk(value)` |
+| 组件 `close(value)` / 点确定 | 组件交回的值 | `onOk(value)` |
 | 点取消 / `close()` | `null` | `onCancel()` |
 | 右上角 X / 遮罩 / ESC / `destroy()` | `null` | `onClose()`（不传时回退 `onCancel`） |
 
 `open` 的第二个参数也可以直接是一个函数：`open(params, (result) => {})`，关闭时调用一次（确定传结果值、取消传 `null`）。
 
-**DialogDefinition（配置文件里能写什么）**
+**WrapDialogOptions（配置文件里能写什么）**
 
-| 字段 | 类型 | 默认 | 说明 |
-|---|---|---|---|
-| `name` | `string` | — | 包裹器名字 |
-| `title` / `description` / `width` | 值 或 `(params) => 值` | — / — / `480` | 可随本次参数动态计算（如编辑时标题带单号） |
-| `okText` / `cancelText` / `okType` | 值 或 `(params) => 值` | `确定` / `取消` / `primary` | 按钮文案与类型 |
-| `fullscreen` / `draggable` / `alignCenter` | `boolean` | `false / false / true` | 全屏 / 可拖拽 / 垂直居中 |
-| `closeOnClickModal` / `closeOnPressEscape` | `boolean` | `false / true` | 点遮罩关闭 / ESC 关闭 |
-| `showClose` / `showFooter` | `boolean` | `true` | 右上角关闭按钮 / 底部按钮区（内容自管交互时传 `false`） |
-| `component` | `Component` | — | 内容来源①：自定义组件（优先级最高） |
-| `fields` | `FormFieldConfig[]` | — | 内容来源②：配置式表单，复用 ProForm，确定时先校验 |
-| `render` | `(params) => VNodeChild` | — | 内容来源③：渲染函数 |
-| `content` | 文本 / VNode / `(params) => …` | — | 内容来源④：纯内容 |
-| `props` / `model` | `Record<string, unknown>` | — | 内容组件默认 props / 表单默认值 |
-| `okValue` | `unknown` | `true` | 非表单模式下「确定」的返回值 |
-| `beforeOk` | `(params) => boolean \| Promise<boolean>` | — | 确定前钩子，返回 `false` 或抛异常都不关闭；本次 `open` 传入的优先 |
-| `labelWidth` / `defaultSpan` / `gutter` / `size` | — | — | 表单模式布局 |
-| `zIndex` | `number` | 自动 | 不传时跟随 Element 全局递增，嵌套自动叠高 |
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `name` | `string` | 包裹器名字（必填） |
+| `props` | `Record<string, unknown>` | 固定透传给组件的 props（每次都一样） |
+| `open` / `close` | `(params, runtime) => void` / `(result, runtime) => void` | 覆盖默认动作（优先级低于组件 `defineExpose`） |
 
-**内容组件契约**：组件不需要知道自己是弹窗，用同一个上下文对象关闭并回传：
+**内置组件**（同样是「正常定义的弹窗组件 + 包裹器」）：
 
-```vue
-<!-- OrderPicker.vue -->
-<script setup lang="ts">
-import { useDialogContext } from '@/components/pro'
-const dialog = useDialogContext<MockOrder>()
-function pick(row: MockOrder) {
-  dialog?.close(row) // 关闭并把 row 交回调用方
-}
-</script>
-```
-
-也可以声明 `props: ['dialog']`，或 `emit('close', value)` / `emit('cancel')`；`open` 时传的 params 会作为组件的 props。
-
-**内置确认框也是一个包裹器**（`src/components/pro/dialog/confirm.ts`）：
+- `FormDialog.vue` + `createFormDialog`：配置式表单弹窗，确定时先校验
+- `ConfirmDialog.vue` + `confirmDialog`：确认框，`.open()` 返回 `true` / `null`
 
 ```ts
+// 配置式表单弹窗：createFormDialog = wrapDialog(FormDialog, { props: { fields, … } })
+export const orderFormDialog = createFormDialog<OrderFormData>({
+  name: 'order-form',
+  title: '新增订单',
+  width: 640,
+  fields,
+  model: { drones: 120 },
+})
+
+// 确认框
 const ok = await confirmDialog.open({ title: '删除订单', content: '删除后不可恢复？', type: 'danger' })
-if (!ok) return // true / null
 ```
 
-**实现要点**：每个包裹器每次 `open` 都新建容器挂到 `body`、用 `render()` 挂载 DialogHost；关闭动画播完后卸载并移除 DOM（另有 400ms 兜底）。`close()` / `destroy()` 通过宿主 api 走同一套关闭流程，`isOpen` 用 ref 保存所以 `computed` 里可响应。同一包裹器重复 `open` 时旧实例静默销毁（它的 Promise 以 `null` 结束）。层级不传 `zIndex` 时交给 Element Plus 全局计数器。`main.ts` 通过 `setDialogAppContext(app._context)` 注入应用上下文，弹窗内容组件里可以用全局注册的图标/组件。样式在 `src/styles/theme/pro/dialog.scss`。
+表单弹窗的参数：`open({ ...row, title })` 里的键既是初始值也是覆盖项；`beforeOk` 也可以从参数传（返回 `false` 或抛错都不关闭）。
+
+**约定**：弹窗参数统一从 `useDialog().params` 取（不要依赖 params 变成 props）；组件里加
+`defineOptions({ inheritAttrs: false })`，避免参数被当成 DOM 属性渲染。
+
+**实现要点**：每次 `open` 新建容器挂到 `body`、用 `render()` 挂载 Runner（注入上下文 + 渲染业务组件）；
+关闭后等 400ms（覆盖 el-dialog 的 300ms 动画）卸载并移除 DOM。`close()` / `destroy()` 通过 Runner
+暴露的入口走同一套关闭流程，`isOpen` 用 ref 保存所以 `computed` 里可响应。同一包裹器重复 `open` 时旧实例
+静默销毁（它的 Promise 以 `null` 结束）。层级交给 Element Plus 全局计数器，嵌套自动叠高；业务组件自己把
+`visible` 置 `false`（点 X / 遮罩 / ESC）也会被识别为关闭。`main.ts` 通过 `setDialogAppContext(app._context)`
+注入应用上下文。样式在 `src/styles/theme/pro/dialog.scss`。
 
 ### 控件名对照表（`control`）
 
@@ -491,7 +531,7 @@ Sidebar 直接遍历该数组生成菜单 —— **新增页面 = 在 menuRoutes
 - 入口：<http://localhost:8091/dev/playground>（默认进入「表单 · 基础用法」）
 - 菜单：左侧沿用后台同款深色菜单，按组件分组 —— 表单 ProForm（基础用法 / 栅格布局 / 校验规则 / 控件总览）、
   表格 ProTable（基础表格 / 列与操作）、搜索 ProSearch（基础搜索 / 搜索 + 表格）、
-  弹窗 ProDialog（基础用法 / 表单弹窗 / 自定义内容 / 进阶用法）
+  弹窗 ProDialog（架构与句柄 / 基础用法 / 表单弹窗 / 自定义内容 / 进阶用法）
 - 每个演示页 = 若干「演示区块」：标题 + 说明 + 效果 + 可展开的**配置代码**，方便直接对照写法
 
 ### 只在开发环境存在
@@ -511,7 +551,7 @@ Sidebar 直接遍历该数组生成菜单 —— **新增页面 = 在 menuRoutes
 1. `src/views/dev/demos/` 下建文件（用 `DemoBlock` + 对应组件）
 2. `src/router/dev.ts` 加一条子路由（`path`、`component`、`meta.title`）
 3. `src/views/dev/menu.ts` 对应分组里加一条菜单（`title` 与 `meta.title` 保持一致）
-4. 弹窗类演示的**配置文件**（包裹器）放在 `src/views/dev/dialogs/`，演示页 import 它来 `open`，
+4. 弹窗类演示的**业务组件 + 平行 ts 配置文件**放在 `src/views/dev/dialogs/`，演示页 import ts 来 `open`，
    这样测试场里演示的就是业务里真实的使用方式
 
 ### 移动端
@@ -526,7 +566,7 @@ Sidebar 直接遍历该数组生成菜单 —— **新增页面 = 在 menuRoutes
   新增能力先加类型再实现，不在业务页面里绕过类型。
 - **业务页面不再手写表格/表单结构**：新页面一律用 `ProTable` / `ProForm` / `ProSearch`；
   例外是个性化极强的页面（如看板图表），也优先复用主题变量与 Pro 组件。
-- **弹窗一律走包裹器**：每个弹窗写一个 `xxx.dialog.ts` 配置文件，用 `defineDialog` 把弹窗包起来导出；
+- **弹窗一律走包裹器**：业务正常写弹窗组件，旁边一个 `xxx.dialog.ts` 用 `wrapDialog` 把组件包起来导出；
   业务里 `import` 配置文件后 `.open(params, callbacks)` / `.close()` / `.destroy()`，不写
   `<xxx-dialog v-model:visible>` + `visible` ref，把「打开 → 等结果 → 继续执行」放在同一段代码里。
 - **端口**：固定 8091，`strictPort: true`（端口被占用时报错而不是静默换端口）。

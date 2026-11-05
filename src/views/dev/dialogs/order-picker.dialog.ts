@@ -1,24 +1,25 @@
 // ─────────────────────────────────────────────────────────────
-// 演示用弹窗配置文件：订单选择弹窗（内容是一个普通组件）
+// 弹窗配置文件：订单选择弹窗（与 OrderPickerDialog.vue 平行）
 //
-// 组件本身不认识"弹窗"，它通过 useDialogContext().close(row) 把选中项交回；
-// 包裹器负责挂载、传参、收结果。showFooter: false 让底部按钮由组件自己提供。
+// 组件是完全正常的业务组件（自己写 el-dialog + 表格），
+// 包裹器负责挂载、把 params 交给它、收 close(row) 的结果。
 // ─────────────────────────────────────────────────────────────
-import { defineDialog } from '@/components/pro'
+import { wrapDialog } from '@/components/pro'
+import OrderPickerDialog from './OrderPickerDialog.vue'
 import type { MockOrder } from '../mock'
-import OrderPicker from '../components/OrderPicker.vue'
 
-/** 打开时传给 OrderPicker 的 props */
+/** 打开时传给组件的参数（初始搜索词、文案） */
 export interface OrderPickerParams {
+  /** 初始搜索词 */
   keyword?: string
+  /** 标题，默认「选择订单」 */
+  title?: string
+  /** 标题下的灰色说明 */
+  description?: string
 }
 
-/** 订单选择弹窗：选中一行返回该行数据，关闭 / 取消返回 null */
-export const orderPickerDialog = defineDialog<OrderPickerParams, MockOrder>({
-  name: 'order-picker',
-  component: OrderPicker,
-  title: '选择订单',
-  description: '内容是一个普通组件（OrderPicker），它用 useDialogContext().close(row) 回传选中项',
-  width: 840,
-  showFooter: false,
-})
+/** 订单选择弹窗：选中一行返回该行数据，取消 / 关闭返回 null */
+export const orderPickerDialog = wrapDialog<OrderPickerParams, MockOrder>(
+  OrderPickerDialog,
+  { name: 'order-picker' },
+)
