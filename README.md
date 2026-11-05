@@ -8,7 +8,7 @@
 - 原型基线：`drone-dispatch-prototype/admin`（Vue3 + Vite + Element Plus + Pinia + ECharts，若伊 RuoYi 风格）
 - 负责：登录鉴权、看板、订单流转（接单/拒单/开始/完成）、退款审批、档期与配置、字典、用户与评价、场地
 
-**当前状态：前端骨架 + 主题包 + 基础控件重写 + 布局框架（侧边栏 / 顶栏 / 多页签 / 路由菜单）已就绪，可启动、可构建；11 个业务页面为占位组件，待逐页从原型迁移。**
+**当前状态：主题包 + 基础控件重写 + 布局框架 + 配置式公共组件（表格 / 表单 / 搜索）+ 组件测试场已就绪，可启动、可构建；11 个业务页面为占位组件，待逐页从原型迁移。**
 
 ## 快速开始
 
@@ -25,6 +25,8 @@ npm run build     # 类型检查（vue-tsc）+ 打包到 dist/
 npm run preview   # 预览打包产物
 ```
 
+开发期附加入口：**组件测试场** <http://localhost:8091/dev/playground>（仅开发环境存在，见下文）。
+
 ## 目录结构
 
 ```
@@ -34,15 +36,17 @@ drone-dispatch-web/
 ├── tsconfig*.json      # TS 工程引用配置（含 element-plus/global 类型、@/* 路径）
 ├── public/             # 静态资源（favicon.svg）
 └── src/
-    ├── main.ts         # 应用入口：pinia + router + Element Plus（中文 locale）+ 图标注册 + 全局样式
+    ├── main.ts         # 应用入口：pinia + router + Element Plus + 图标注册 + 全局样式 + DEV 测试场路由
     ├── App.vue         # 只渲染 router-view（页面在 layout 内）
-    ├── router/         # 路由表（menuRoutes 与侧边栏菜单同源）+ 标题守卫
-    ├── layout/         # 布局框架：侧边栏 / 顶栏 / 多页签 / 内容区（见下）
+    ├── router/         # index.ts 业务路由（menuRoutes 与侧边栏同源）；dev.ts 测试场路由（仅开发环境）
+    ├── layout/         # 布局框架：侧边栏 / 顶栏 / 多页签 / 内容区
+    ├── components/
+    │   ├── pro/        # 配置式公共组件（ProForm / ProTable / ProSearch）★
+    │   └── PagePlaceholder.vue
     ├── stores/         # pinia（tags-view 多页签状态）
     ├── config/         # 品牌常量（静态，后续改为接口拉取）
-    ├── components/     # 公共组件（PagePlaceholder 占位页）
-    ├── views/          # 业务页面（当前 11 个占位，逐个迁移原型）
-    └── styles/         # 公共主题包 + 全局样式（见下）
+    ├── views/          # 业务页面（当前 11 个占位）+ dev/ 组件测试场 ★
+    └── styles/         # 公共主题包 + 全局样式（含 theme/pro/ 公共组件样式）★
 ```
 
 ## 主题包与 Element Plus 重写
@@ -56,6 +60,13 @@ src/styles/
 └── theme/                         # 公共主题包
     ├── variables.scss             # 主题基础配置（字体/字号/颜色/圆角/间距/阴影）
     ├── index.scss                 # 输出 --app-* CSS 变量（供业务页面使用）
+    ├── layout.scss                # 布局样式（侧边栏 / 顶栏 / 页签 / 内容区）
+    ├── pro/                       # 公共组件样式（Pro* 与组件测试场）
+    │   ├── index.scss             # 汇总入口
+    │   ├── form.scss              # 表单栅格 / 行内表单
+    │   ├── table.scss             # 表格分页 / 表头 / 金额与次级文字
+    │   ├── search.scss            # 搜索卡片与按钮区
+    │   └── playground.scss        # 组件测试场外壳与演示区块
     └── element/
         ├── index.scss             # Element Plus 变量覆盖（@forward ... with）
         └── components/            # 基础控件重写（在 Element 默认样式之后加载）
@@ -63,11 +74,12 @@ src/styles/
             ├── input.scss         # 输入框 / 文本域
             ├── select.scss        # 下拉
             ├── card.scss          # 卡片
-            └── feedback.scss      # 弹窗 / 抽屉 / 消息框（小屏视口）
+            ├── feedback.scss      # 弹窗 / 抽屉 / 消息框（小屏视口）
+            └── menu.scss          # 深色侧边栏菜单
 ```
 
-`styles/index.scss` 的加载顺序不可调换：**主题变量 → Element 变量定制 → Element 全量样式 → 控件重写 → 全局基础**。
-Element 的变量定制必须早于其样式生效，控件重写必须晚于其默认样式才能覆盖。
+`styles/index.scss` 的加载顺序不可调换：**主题变量 → Element 变量定制 → Element 全量样式 → 控件重写 → 布局 → 公共组件 → 全局基础**。
+Element 的变量定制必须早于其样式生效，控件与组件重写必须晚于其默认样式才能覆盖。
 
 ### 主题取值来源
 
@@ -96,18 +108,232 @@ Element 的变量定制必须早于其样式生效，控件重写必须晚于其
 .title { color: var(--app-color-primary); padding: var(--app-space-md); }
 ```
 
-### 已重写的控件（与 Element 默认的差异点）
+## 配置式公共组件
 
-| 控件 | 重写内容 |
+`src/components/pro/` 里是三个配置驱动组件：**外部只传配置数据，内部负责布局与渲染**，业务页面不再手写
+`el-table-column` / `el-form-item` 堆叠。控件用字符串名声明（`control: 'input'` / `'select'` …），
+由 `ProField` 映射到对应 Element 控件。
+
+```ts
+import { ProForm, ProTable, ProSearch } from '@/components/pro'
+import type { FormFieldConfig, TableColumn, TableActions } from '@/components/pro'
+```
+
+### 设计约定
+
+1. **配置优先，插槽兜底**：每个能力都有配置入口；需要完全自定义时用同名具名插槽（插槽优先级高于配置）。
+2. **控件名是字符串**：`control` 只写名字，不写标签；未识别的名字会渲染提示而不是报错。
+3. **选项来源三种写法**：静态数组、同步函数、异步函数（返回 Promise，组件自动 loading）。
+4. **联动用函数**：`hidden` / `disabled` 可以传 `(model) => boolean`，由 `ProForm` 按当前模型求值。
+5. **数据模型由外部持有**：组件直接读写传入的 `reactive` 对象，父级永远拿到最新值。
+
+### 表单 ProForm
+
+```vue
+<script setup lang="ts">
+const model = reactive({ name: '', phone: '', venue: '', remark: '' })
+
+const fields: FormFieldConfig[] = [
+  { prop: 'name', label: '客户姓名', control: 'input', required: true },
+  { prop: 'phone', label: '手机号', control: 'input',
+    rules: [{ pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确', trigger: 'blur' }] },
+  { prop: 'venue', label: '表演场地', control: 'select', options: VENUE_OPTIONS },
+  { prop: 'remark', label: '备注', control: 'textarea', span: 24 },
+]
+</script>
+
+<template>
+  <ProForm ref="formRef" :model="model" :fields="fields">
+    <template #tail>
+      <el-button type="primary" @click="onSubmit">提交</el-button>
+      <el-button @click="formRef?.resetFields()">重置</el-button>
+    </template>
+  </ProForm>
+</template>
+```
+
+**props**
+
+| 属性 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `model` | `Record<string, any>` | 必填 | 响应式数据模型，组件直接读写 |
+| `fields` | `FormFieldConfig[]` | 必填 | 字段配置 |
+| `labelWidth` | `string \| number` | `88px` | 标签宽度 |
+| `labelPosition` | `left / right / top` | `right` | 标签位置 |
+| `defaultSpan` | `number` | `8` | 默认栅格宽度（24 栅格制，8 = 三列） |
+| `gutter` | `number` | `16` | 栅格间距 |
+| `size` | `large / default / small` | `default` | 控件尺寸 |
+| `disabled` | `boolean` | `false` | 整体禁用 |
+| `inline` | `boolean` | `false` | 行内布局（搜索栏用），配合 `#tail` 插槽同行排列 |
+| `scrollToError` | `boolean` | `true` | 校验失败滚动到首个错误 |
+
+**方法（通过 ref）**：`validate()`（返回 `Promise<boolean>`，不抛异常）、`validateField(prop)`、
+`resetFields()`（恢复配置的 `defaultValue`）、`clearValidate()`、`getModel()`。
+
+**插槽**：`#tail` 表单末尾自定义区域（按钮行）；字段插槽 —— 配置里写 `field.slot = 'xxx'`，
+模板用 `#xxx="{ value, setValue, field, model }"` 接管该字段的渲染。
+
+**FormFieldConfig 字段**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `prop` | `string` | 字段名（model 的 key） |
+| `label` | `string` | 标签，缺省用 prop |
+| `control` | `string` | 控件名，缺省 `input`（见下方对照表） |
+| `placeholder` | `string` | 缺省按控件类型生成「请输入/请选择 + 标签」 |
+| `span` / `offset` | `number` | 栅格占宽 / 左偏移（1~24） |
+| `defaultValue` | `unknown` | 默认值（`resetFields` 用） |
+| `rules` | `FormItemRule[]` | Element 原生校验规则 |
+| `required` | `boolean` | 必填简写，自动生成提示 |
+| `disabled` / `hidden` | `boolean \| (model) => boolean` | 支持联动禁用 / 显隐 |
+| `clearable` | `boolean` | 输入与选择类默认 `true` |
+| `width` | `string \| number` | 控件宽度（行内表单里常用，如 `220`） |
+| `options` | 数组 / 函数 / 异步函数 | 选择类控件的选项；带 `group` 自动分组 |
+| `valueFormat` | `string` | 日期类值格式，缺省按控件类型（`YYYY-MM-DD` 等） |
+| `props` | `Record<string, unknown>` | 透传给 Element 控件（`filterable` / `multiple` / `rows` …） |
+| `slot` | `string` | 具名插槽名（优先级高于 control） |
+| `tip` | `string` | 控件下方说明文字 |
+| `isRange` | `boolean` | 多值控件标记（多数情况按控件类型自动推断） |
+
+### 搜索栏 ProSearch
+
+在 ProForm（行内布局）基础上固定提供「查询 / 重置」：一张卡片 = 一行字段 + 按钮组，字段过多时自动折叠。
+
+```vue
+<script setup lang="ts">
+const query = reactive({ keyword: '', status: '', venue: '', dateRange: [] })
+
+const fields: FormFieldConfig[] = [
+  { prop: 'keyword', label: '关键词', control: 'input', width: 220 },
+  { prop: 'status', label: '状态', control: 'select', options: STATUS_OPTIONS, width: 160 },
+  { prop: 'dateRange', label: '日期', control: 'daterange', width: 260 },
+]
+</script>
+
+<template>
+  <ProSearch :model="query" :fields="fields" :loading="loading"
+    @search="load(1)" @reset="load(1)">
+    <template #actions>
+      <el-button type="success" plain>导出结果</el-button>
+    </template>
+  </ProSearch>
+</template>
+```
+
+**props**：`fields`（必填）、`model`（推荐外部传，组件直接改它）、`loading`、`showReset`（默认 true）、
+`collapsible`（默认 true）、`defaultVisibleCount`（默认 3）、`searchText`、`resetText`、`searchOnEnter`（默认 true，仅输入框生效）。
+
+**事件**：`search(query)`（查询或回车，参数为条件快照）、`reset(query)`（重置后条件，是否重新查询由外部决定）。
+
+**方法**：`search()`、`reset()`、`getQuery()`。**插槽**：`#actions`（追加按钮）。
+
+### 表格 ProTable
+
+```vue
+<script setup lang="ts">
+const columns: TableColumn[] = [
+  { prop: 'id', label: '订单号', minWidth: 160, sortable: true },
+  { prop: 'amount', label: '金额', width: 130, align: 'right',
+    formatter: (row, value) => formatMoney(value as number) },
+  { prop: 'status', label: '状态', width: 100,
+    render: (ctx) => h(ElTag, { type: statusType(ctx.value) }, () => statusText(ctx.value)) },
+]
+
+const actions: TableActions = {
+  width: 180, max: 3,
+  buttons: [
+    { text: '详情', type: 'primary', onClick: (row) => openDetail(row) },
+    { text: '编辑', show: (row) => row.status === 'pending', onClick: edit },
+    { text: '删除', type: 'danger', confirm: '确认删除该订单？', onClick: remove },
+    { text: '导出', onClick: exportRow },
+  ],
+}
+</script>
+
+<template>
+  <ProTable :columns="columns" :data="rows" :loading="loading"
+    selection index border :actions="actions" :pagination="pagination"
+    @page-change="onPageChange">
+    <template #user="{ row }">
+      <div>{{ row?.nickname }}</div>
+      <div class="cell-sub">{{ row?.phone }}</div>
+    </template>
+  </ProTable>
+</template>
+```
+
+**props**
+
+| 属性 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `columns` | `TableColumn[]` | 必填 | 列配置 |
+| `data` | `Record<string, any>[]` | 必填 | 数据 |
+| `loading` | `boolean` | `false` | 加载遮罩 |
+| `rowKey` | `string \| (row) => string` | `id` | 行唯一键 |
+| `border` / `stripe` | `boolean` | `false` | 边框 / 斑马纹 |
+| `size` | `large / default / small` | `default` | 尺寸 |
+| `showHeader` | `boolean` | `true` | 是否显示表头 |
+| `index` | `boolean` | `false` | 追加序号列 |
+| `selection` | `boolean` | `false` | 追加多选列 |
+| `actions` | `TableActions` | `null` | 操作列（含「更多」与二次确认） |
+| `pagination` | `TablePagination` | `null` | 底部分页（含 `page / size / total`） |
+| `emptyText` | `string` | `暂无数据` | 空数据文案 |
+| `height` / `maxHeight` | `number \| string` | — | 表格高度 |
+| `highlightCurrentRow` | `boolean` | `false` | 高亮当前行 |
+| `rowClassName` / `defaultSort` | — | — | 透传 el-table |
+
+**事件**：`selection-change(rows)`、`sort-change({ prop, order })`、`row-click(row, column, event)`、
+`page-change({ page, size })`、`update:page`、`update:size`、`action({ button, row, index })`
+（不论按钮是否配 `onClick` 都会抛出，便于统一埋点）。
+
+**单元格渲染优先级**：`slot`（具名插槽）> `render(ctx)`（返回 VNode，用 `ProCell` 包装）> `formatter(row, value, index)` > 默认 `row[prop]`。
+
+**插槽作用域**：列插槽 `{ row, index, column }`；`#empty` / `#append` 透传 el-table 的空状态与表格尾部。
+
+**TableColumn 字段**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `prop` / `label` | `string` | 字段名 / 表头 |
+| `width` / `minWidth` | `number \| string` | 列宽 / 最小列宽 |
+| `align` | `left / center / right` | 对齐 |
+| `fixed` | `boolean \| left \| right` | 固定列 |
+| `sortable` | `boolean \| 'custom'` | 本地排序 / 交给外部 |
+| `showOverflowTooltip` | `boolean` | 超出省略 + tooltip |
+| `formatter` | `(row, value, index) => string` | 文本格式化 |
+| `render` | `(ctx) => VNodeChild` | 自定义单元格 |
+| `slot` / `headerSlot` | `string` | 单元格 / 表头具名插槽 |
+| `children` | `TableColumn[]` | 多级表头（当前支持两层） |
+| `hidden` | `boolean` | 隐藏该列（保留配置） |
+| `type` | `selection / index / expand` | 列类型 |
+| `props` | `Record<string, unknown>` | 透传 el-table-column |
+
+**TableActions**：`label`（默认「操作」）、`width`、`fixed`（默认 `right`）、`align`、`buttons`、`max`（超出收进「更多」下拉）、`link`（默认 `true`）。
+每个按钮支持 `text / type / icon / show(row) / disabled(row) / confirm`（字符串或函数，二次确认）/ `onClick(row, index)`。
+
+**TablePagination**：`page` / `size` / `total` 必填，另有 `pageSizes`（默认 `[10, 20, 50, 100]`）、`layout`、
+`background`（默认 true）、`small`。
+
+### 控件名对照表（`control`）
+
+| 分类 | 控件名 |
 |---|---|
-| 按钮 | 字号 13px（大 14 / 小 12）、4px 圆角；主色 hover/active 固定为 `light-3` / `dark-2`；禁用文字色统一 |
-| 输入框 | 字号 13px；边框 / hover / 焦点 / 占位符色映射到主题变量 |
-| 下拉 | 触发器与选项字号 13px；面板 4px 圆角、阴影 `0 2px 12px rgba(0,0,0,.1)`；选项 hover `#f5f7fa`、选中主色 500 字重 |
-| 卡片 | 4px 圆角、16px 内边距、与原型的浅阴影（`shadow="never"` 时仍不显示阴影） |
-| 弹窗 / 抽屉 / 消息框 | 小屏最大宽度 `calc(100vw - 32px)`，抽屉 `100vw`（规则取自原型响应式覆盖） |
-| 全局 | 字体族、页面底色、链接色、8px 细滚动条（`#c0c4cc`） |
+| 文本 | `input`、`textarea`、`password`、`autocomplete` |
+| 数字 / 布尔 | `input-number`、`switch`、`slider`、`rate`、`color` |
+| 选择 | `select`（多选加 `props.multiple`）、`radio`、`checkbox`、`cascader`、`tree-select` |
+| 日期时间 | `date`、`datetime`、`daterange`、`datetimerange`、`month`、`year`、`time` |
+| 扩展 | `custom`（配 `slot` 由业务完全接管） |
 
-要新增控件重写：在 `theme/element/components/` 下加文件，并在 `styles/index.scss` 第 4 步追加 `@use`。
+### 样式位置
+
+组件外观不写在组件里，统一在主题包（改一处全局生效）：
+
+- `src/styles/theme/pro/form.scss` —— 栅格表单间距、行内表单标签
+- `src/styles/theme/pro/table.scss` —— 分页右对齐、表头字重字号、`.cell-sub` 次级文字、`.amount-text` 金额色
+- `src/styles/theme/pro/search.scss` —— 搜索卡片底部留白、字段默认宽度、小屏撑满
+- `src/styles/theme/pro/playground.scss` —— 组件测试场外壳与演示区块
+
+新增公共组件样式：在该目录加文件，并在 `theme/pro/index.scss` 里 `@use`。
 
 ## 布局框架（layout）
 
@@ -151,20 +377,49 @@ Sidebar 直接遍历该数组生成菜单 —— **新增页面 = 在 menuRoutes
 - `src/styles/theme/element/components/menu.scss` → el-menu 深色主题（hover、选中、左条、折叠）
 - `src/styles/theme/index.scss` 同步输出 `--app-sidebar-bg`、`--app-navbar-height` 等 CSS 变量
 
-### 尚未接入（留待后端阶段）
+## 组件测试场（仅开发环境）
 
-- **登录/鉴权**：当前无守卫，直接进入布局；`router.afterEach` 只设置页面标题。后端接口就绪后在
-  `router.beforeEach` 加 token/角色拦截，并补 `views/login`。
-- **用户信息**：Navbar 显示占位"管理员"，退出登录提示"登录鉴权待接入服务端"。
-- **接口请求**：未引入 axios，等 server 契约确定后再加 `utils/request` 与 `/api` 代理。
+给开发人员用的**组件演示与验收页面**，用来快速确认公共组件的渲染与交互效果，不进入业务菜单。
+
+- 入口：<http://localhost:8091/dev/playground>（默认进入「表单 · 基础用法」）
+- 菜单：左侧沿用后台同款深色菜单，按组件分组 —— 表单 ProForm（基础用法 / 栅格布局 / 校验规则 / 控件总览）、
+  表格 ProTable（基础表格 / 列与操作）、搜索 ProSearch（基础搜索 / 搜索 + 表格）
+- 每个演示页 = 若干「演示区块」：标题 + 说明 + 效果 + 可展开的**配置代码**，方便直接对照写法
+
+### 只在开发环境存在
+
+实现是**双重隔离**，不是靠路由守卫：
+
+1. `src/router/dev.ts` 单独存放测试场路由，**没有**注册进 `menuRoutes`（业务菜单天然看不到）。
+2. `main.ts` 在 `if (import.meta.env.DEV)` 分支里 `await import('@/router/dev')` 再 `router.addRoute`。
+   生产构建时该条件被静态替换为 `false`，整段分支（含动态 import）被剔除，**演示代码不进产物**。
+
+已验证：`npm run build` 后对 `dist/` 全量搜索「组件测试场 / dev/playground / ProSearch」均无命中；
+生产预览下访问 `/dev/playground` 会落到 `/:pathMatch(.*)*` 重定向回 `/index`（标题「首页 - 星穹派单管理后台」）。
+
+### 新增一个演示页
+
+1. `src/views/dev/demos/` 下建文件（用 `DemoBlock` + 对应组件）
+2. `src/router/dev.ts` 加一条子路由（`path`、`component`、`meta.title`）
+3. `src/views/dev/menu.ts` 对应分组里加一条菜单（`title` 与 `meta.title` 保持一致）
+
+### 移动端
+
+窄屏（`< 768px`）时侧栏隐藏，顶部出现横向滚动的组件导航（同一份 `menu.ts` 数据），内容区占满宽度。
 
 ## 约定
 
 - **依赖保持最小**：`vue` + `element-plus` + `sass`（devDependency）+ `vue-router` + `pinia` +
-  `@element-plus/icons-vue`（布局框架必需）；未提前引入 ECharts / axios 等，迁移原型时按实际需要再加。
+  `@element-plus/icons-vue`；未提前引入 ECharts / axios 等，迁移原型时按实际需要再加。
+- **公共组件只增不改契约**：`src/components/pro/types.ts` 是 Pro* 组件的类型契约，业务侧与组件侧共用；
+  新增能力先加类型再实现，不在业务页面里绕过类型。
+- **业务页面不再手写表格/表单结构**：新页面一律用 `ProTable` / `ProForm` / `ProSearch`；
+  例外是个性化极强的页面（如看板图表），也优先复用主题变量与 Pro 组件。
 - **端口**：固定 8091，`strictPort: true`（端口被占用时报错而不是静默换端口）。
   `drone-dispatch-web` 与原型 `admin`（8080）可同时启动。
 - **接口代理**：暂未配置 `/api` 代理 —— 后端 `drone-dispatch-server` 技术栈与接口契约待定，
   就绪后再补 `server.proxy`（原型为 `http://localhost:8090`）。
 - **Element Plus 引入方式**：全量组件注册 + 中文 locale；样式改为编译 `theme-chalk` SCSS 源码以支持变量定制
-  （不再引入 `element-plus/dist/index.css`）。未引入图标库与按需插件，业务需要时再评估。
+  （不再引入 `element-plus/dist/index.css`）。未引入按需插件，业务需要时再评估。
+- **登录/鉴权**：当前无守卫，直接进入布局；`router.afterEach` 只设置页面标题。后端就绪后在
+  `router.beforeEach` 加 token/角色拦截，并补 `views/login`。

@@ -1,0 +1,199 @@
+@use '../variables.scss' as theme;
+
+// ─────────────────────────────────────────────────────────────
+// 组件测试场（/dev/playground）样式
+// 仅开发环境使用；视觉沿用后台的深色侧栏 + 浅色内容区，
+// 顶栏用黄色标记与业务后台区分。
+// ─────────────────────────────────────────────────────────────
+
+// ── 外壳 ────────────────────────────────────────
+.dev-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: theme.$bg-page;
+}
+
+.dev-sidebar {
+  width: 210px;
+
+  // logo 图标在深色底上默认继承 Element 的深灰，这里改浅色
+  .app-sidebar-logo-icon {
+    color: theme.$sidebar-text;
+  }
+}
+
+// 分组标题（深色背景上的弱文字）
+.dev-sidebar .el-menu-item-group__title {
+  padding: 12px 20px 6px;
+  height: auto;
+  line-height: 1.4;
+  font-size: theme.$font-size-xs;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.dev-menu-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dev-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+// ── 顶栏 ────────────────────────────────────────
+.dev-navbar {
+  height: theme.$navbar-height;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 theme.$space-lg;
+  background: theme.$bg-card;
+  border-bottom: 2px solid theme.$color-warning;
+}
+
+.dev-navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dev-navbar-title {
+  font-size: theme.$font-size-md;
+  font-weight: 600;
+  color: theme.$text-primary;
+  white-space: nowrap;
+}
+
+.dev-navbar-desc {
+  font-size: theme.$font-size-xs;
+  color: theme.$text-secondary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dev-navbar-right {
+  flex-shrink: 0;
+  margin-left: theme.$space-lg;
+}
+
+// 窄屏时侧栏隐藏：开发者在手机上也能查看演示
+@media (max-width: 768px) {
+  .dev-sidebar {
+    display: none;
+  }
+
+  .dev-navbar-desc {
+    display: none;
+  }
+}
+
+// 小屏顶栏空间紧张：返回按钮只留图标
+@media (max-width: 576px) {
+  .dev-back-text {
+    display: none;
+  }
+}
+
+// ── 窄屏组件导航（替代侧栏菜单） ────────────────
+.dev-mobile-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .dev-mobile-nav {
+    display: flex;
+    flex-shrink: 0;
+    gap: 6px;
+    padding: theme.$space-sm theme.$space-lg;
+    overflow-x: auto;
+    background: theme.$bg-card;
+    border-bottom: 1px solid theme.$border-color-lighter;
+  }
+
+  .dev-mobile-nav-item {
+    flex-shrink: 0;
+    padding: 3px 10px;
+    font-size: theme.$font-size-xs;
+    line-height: 1.6;
+    color: theme.$text-regular;
+    white-space: nowrap;
+    background: theme.$bg-card;
+    border: 1px solid theme.$border-color-light;
+    border-radius: theme.$radius-base;
+
+    &.is-active {
+      color: #fff;
+      background: theme.$color-primary;
+      border-color: theme.$color-primary;
+    }
+  }
+}
+
+// ── 内容区 ──────────────────────────────────────
+.dev-content {
+  flex: 1;
+  overflow: auto;
+  padding: theme.$space-lg;
+}
+
+// ── 演示区块 ────────────────────────────────────
+.demo-block {
+  padding: theme.$space-lg;
+  margin-bottom: theme.$space-lg;
+  background: theme.$bg-card;
+  border-radius: theme.$radius-base;
+  box-shadow: theme.$shadow-card;
+}
+
+.demo-block-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: theme.$space-sm;
+  padding-bottom: theme.$space-md;
+  margin-bottom: theme.$space-lg;
+  border-bottom: 1px solid theme.$border-color-lighter;
+}
+
+.demo-block-title {
+  font-size: theme.$font-size-md;
+  font-weight: 600;
+  color: theme.$text-primary;
+}
+
+.demo-block-desc {
+  font-size: theme.$font-size-xs;
+  color: theme.$text-secondary;
+}
+
+.demo-block-body {
+  // 内容由各演示页决定
+}
+
+.demo-block-foot {
+  margin-top: theme.$space-md;
+  padding-top: theme.$space-md;
+  border-top: 1px dashed theme.$border-color-lighter;
+}
+
+.demo-block-code {
+  max-height: 420px;
+  margin: theme.$space-md 0 0;
+  padding: theme.$space-md;
+  overflow: auto;
+  font-family: Consolas, Menlo, 'Courier New', monospace;
+  font-size: theme.$font-size-xs;
+  line-height: 1.7;
+  color: #3d4451;
+  background: #f8f9fb;
+  border: 1px solid theme.$border-color-lighter;
+  border-radius: theme.$radius-base;
+}

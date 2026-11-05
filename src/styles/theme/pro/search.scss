@@ -1,0 +1,57 @@
+@use '../variables.scss' as theme;
+
+// ─────────────────────────────────────────────────────────────
+// 搜索栏（ProSearch）样式
+// 结构：卡片 + 行内表单（ProForm inline）+ 右侧查询/重置按钮
+// 原型基线：drone-dispatch-prototype/admin 的 .card + .search-card
+//   （搜索卡片下内边距为 0，字段自身 margin-bottom 提供留白）
+// ─────────────────────────────────────────────────────────────
+
+.pro-search {
+  margin-bottom: theme.$space-lg;
+}
+
+.pro-search-card {
+  // 卡片底部留白交给字段的 margin-bottom，避免叠加后空隙过大
+  .el-card__body {
+    padding-bottom: 0;
+  }
+
+  // inline 表单里控件没有可撑满的父级宽度，给一个舒适默认宽度；
+  // 字段配置里写了 width 时内联样式优先，会覆盖这里
+  .pro-field {
+    width: 220px;
+  }
+
+  .el-form-item {
+    margin-bottom: theme.$space-lg;
+  }
+}
+
+// 按钮组：行内表单末尾
+.pro-search-buttons {
+  .el-form-item__content {
+    margin-left: 0;
+  }
+}
+
+// ── 小屏：字段独占一行，按钮换行 ──────────────────
+@media (max-width: 768px) {
+  .pro-search-card {
+    .el-form-item {
+      display: flex;
+      width: 100%;
+      margin-right: 0;
+      margin-bottom: theme.$space-md;
+    }
+
+    .el-form-item__content {
+      flex: 1;
+    }
+
+    // 字段可能配置了内联 width，窄屏需要更高优先级才能撑满
+    .pro-field {
+      width: 100% !important;
+    }
+  }
+}

@@ -1,0 +1,8 @@
+// ─────────────────────────────────────────────────────────────
+// 配置式组件样式汇总（ProForm / ProTable / ProSearch / 测试场）
+// 加载顺序：必须在 Element Plus 全量样式之后（见 styles/index.scss 第 5 步）
+// ─────────────────────────────────────────────────────────────
+@use './form.scss';
+@use './table.scss';
+@use './search.scss';
+@use './playground.scss';

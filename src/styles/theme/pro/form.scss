@@ -1,0 +1,50 @@
+@use '../variables.scss' as theme;
+
+// ─────────────────────────────────────────────────────────────
+// 配置式表单（ProForm）样式
+// 控件外观已由 Element 变量 + 控件重写统一，这里只处理"布局"：
+//   1) 栅格表单的字段间距
+//   2) 行内表单（搜索栏）的标签字号与间距
+// ─────────────────────────────────────────────────────────────
+
+.pro-form {
+  .el-form-item {
+    margin-bottom: theme.$space-lg;
+  }
+
+  // 栅格表单里控件撑满列宽（ProField 的 scoped 样式已做，这里兜底非 scoped 场景）
+  .pro-field {
+    width: 100%;
+  }
+}
+
+// ── 窄屏：栅格表单强制单列 ──────────────────────
+// 24 栅格的三/四列布局在手机宽度下会把控件压成几十像素，统一改成一行一个字段
+@media (max-width: 768px) {
+  // el-row 用负外边距抵消 gutter，单列后要一并去掉，否则列宽会超出容器
+  .pro-form .el-row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .pro-form .el-col {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
+// ── 行内（搜索栏） ──────────────────────────────
+.pro-form.is-inline {
+  .el-form-item {
+    margin-right: theme.$space-lg;
+    margin-bottom: theme.$space-lg;
+  }
+
+  .el-form-item__label {
+    padding-right: theme.$space-sm;
+    font-size: theme.$control-font-size;
+    color: theme.$text-regular;
+  }
+}

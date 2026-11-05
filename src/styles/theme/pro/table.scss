@@ -1,0 +1,85 @@
+@use '../variables.scss' as theme;
+
+// ─────────────────────────────────────────────────────────────
+// 配置式表格（ProTable）样式
+//
+// 视觉基线：drone-dispatch-prototype/admin 列表页（搜索卡片 + 表格卡片）
+//   - 分页条右对齐、与表格间距 16px；<768px 左对齐且可横向滚动
+//   - 表头字重 500、字号 13px（$control-font-size）
+//   - 单元格内次级文字 12px / $text-secondary
+//   - 金额用 $color-danger（原型 #f56c6c）
+//
+// 说明：ProTable.vue 内只留极少量 scoped 布局样式，视觉规则集中在此文件，
+//       由 theme/pro/index.scss 汇总 @use（本文件可独立编译）。
+// ─────────────────────────────────────────────────────────────
+
+.pro-table {
+  width: 100%;
+
+  // 表格本体撑满容器
+  .el-table {
+    width: 100%;
+  }
+
+  // 表头：字重 500、字号 13px（Element 默认偏粗，按原型弱化）
+  .el-table__header-wrapper th.el-table__cell,
+  .el-table__fixed-header-wrapper th.el-table__cell {
+    font-weight: theme.$font-weight-primary;
+    font-size: theme.$control-font-size;
+  }
+
+  // 空数据文案弱化
+  .el-table__empty-text {
+    color: theme.$text-placeholder;
+    font-size: theme.$control-font-size;
+  }
+
+  // 操作列按钮容器：水平排列、居中、紧凑间距
+  .pro-table__actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: theme.$space-xs;
+
+    // 覆盖 Element 相邻按钮的左边距，交给 gap 控制
+    .el-button + .el-button {
+      margin-left: 0;
+    }
+  }
+}
+
+// 单元格内次级说明文字（原型 .cell-sub：12px / #909399）
+.cell-sub {
+  display: block;
+  font-size: theme.$font-size-xs; // 12px
+  line-height: 1.5;
+  color: theme.$text-secondary;
+}
+
+// 金额强调（原型 .amount-text：#f56c6c、600）
+.amount-text {
+  color: theme.$color-danger;
+  font-weight: 600;
+}
+
+// ── 分页条：右对齐、与表格 16px 间距（原型 .pager） ──
+.pro-table__pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: theme.$space-lg; // 16px
+  overflow-x: auto;
+}
+
+// ── 窄屏（<768px）：分页左对齐并允许横向滚动，避免按钮溢出 ──
+@media (max-width: 767px) {
+  .pro-table__pager {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+
+  .pro-table .pro-table__actions {
+    justify-content: flex-start;
+  }
+}

@@ -22,5 +22,9 @@
 // 5. 布局样式（侧边栏 / 顶栏 / 页签 / 内容区）
 @use './theme/layout.scss';
 
-// 6. 全局基础样式
+// 6. 配置式公共组件样式（ProForm / ProTable / ProSearch / 组件测试场）
+//    必须晚于 Element 全量样式，才能覆盖其默认样式
+@use './theme/pro/index.scss' as pro;
+
+// 7. 全局基础样式
 @use './base.scss';
