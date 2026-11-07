@@ -6,9 +6,9 @@
 //   - 页面底色 #f0f2f5、卡片阴影 0 1px 4px rgba(0, 21, 41, 0.08)
 //   - 表单控件按若伊惯例统一 13px 字号、32px 高度、4px 圆角
 //
-// 使用方式：
-//   SCSS 变量：@use '@/styles/theme' as theme;  →  theme.$color-primary
-//   CSS 变量：theme/index.scss 输出 --app-*，业务页面可直接 var(--app-color-primary)
+// 使用方式（本文件经 vite.config.ts 的 @theme 别名按 APP_THEME 解析）：
+//   SCSS 变量：@use '@theme' as theme;  →  theme.$color-primary
+//   CSS 变量：主题入口 index.scss 输出 --app-*，业务页面可直接 var(--app-color-primary)
 // ─────────────────────────────────────────────────────────────
 
 // ── 品牌色 / 语义色 ──────────────────────────────

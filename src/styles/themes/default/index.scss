@@ -1,6 +1,7 @@
 // 主题包入口：对外暴露 SCSS 变量，并输出 --app-* CSS 变量
+// 本文件经 vite.config.ts 的 @theme 别名引入（指向当前 APP_THEME 主题包）
 // 业务页面两种用法都支持：
-//   1) SCSS：@use '@/styles/theme' as theme;  →  theme.$color-primary
+//   1) SCSS：@use '@theme' as theme;  →  theme.$color-primary
 //   2) CSS：color: var(--app-color-primary);（不依赖 SCSS，适合任意组件）
 @forward './variables.scss';
 @use './variables.scss' as *;

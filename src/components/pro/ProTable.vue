@@ -8,7 +8,7 @@
 //   3) 统一处理：多选/序号列、多级表头、操作列（含「更多」下拉与二次确认）、底部分页
 //
 // 类型契约见 ./types.ts（Lead 维护，本组件不修改该文件）
-// 视觉样式集中在 src/styles/theme/pro/table.scss，本文件只保留必要的 scoped 样式
+// 视觉样式集中在当前主题包（@theme）的 pro/table.scss，本文件只保留必要的 scoped 样式
 // ─────────────────────────────────────────────────────────────
 import { computed, ref, watch } from 'vue'
 import { ElMessageBox } from 'element-plus'
