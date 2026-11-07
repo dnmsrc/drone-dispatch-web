@@ -1,7 +1,11 @@
 <script setup lang="ts">
 // 弹窗 · 表单：包裹器包住 fields 配置式表单，确定时自动校验
+//
+// 结果是 { action, data }：action = DialogAction.Confirm 时 data 才是表单数据，
+// 取消 / 点 X 都是其它 action，data = null（不用靠 null 猜语义，只看 action）。
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { DialogAction } from '@/components/pro'
 import { orderFormDialog } from '../dialogs/order-form.dialog'
 import type { OrderFormData } from '../dialogs/order-form.dialog'
 import DemoBlock from '../components/DemoBlock.vue'
@@ -12,23 +16,23 @@ const attempts = ref(0)
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
-/** 新增：await 拿表单数据，随后继续后续逻辑 */
+/** 新增：await 拿「动作 + 数据」，确认后才继续后续逻辑 */
 async function create() {
-  const data = await orderFormDialog.open()
-  if (!data) {
-    lastResult.value = '已取消 → 返回 null，后面的逻辑不执行'
+  const result = await orderFormDialog.open()
+  if (result.action !== DialogAction.Confirm) {
+    lastResult.value = `已关闭 → action: ${result.action}（没有提交），后面的逻辑不执行`
     return
   }
 
-  rows.value.unshift(data)
-  lastResult.value = JSON.stringify(data, null, 2)
-  ElMessage.success(`订单 ${data.id} 已创建`)
+  rows.value.unshift(result.data)
+  lastResult.value = `action: confirm → ${JSON.stringify(result.data, null, 2)}`
+  ElMessage.success(`订单 ${result.data.id} 已创建`)
 }
 
 /** 确定前钩子：本次 open 传入 beforeOk（覆盖定义里的），返回 false 保持弹窗打开 */
 async function createWithBeforeOk() {
   attempts.value = 0
-  const data = await orderFormDialog.open({
+  const result = await orderFormDialog.open({
     // beforeOk 作为本次 open 的参数传给弹窗组件，组件在确定时先跑它
     beforeOk: async () => {
       await sleep(700)
@@ -40,23 +44,26 @@ async function createWithBeforeOk() {
       return true
     },
   })
-  if (!data) return
-  rows.value.unshift(data)
-  lastResult.value = JSON.stringify(data, null, 2)
+  if (result.action !== DialogAction.Confirm) {
+    lastResult.value = `已关闭 → action: ${result.action}（校验未通过或用户取消）`
+    return
+  }
+  rows.value.unshift(result.data)
+  lastResult.value = JSON.stringify(result.data, null, 2)
 }
 
-/** 回调风格：不 await，结果走 onOk / onCancel */
+/** 回调风格：不 await，结果走 onConfirm / onCancel */
 function createWithCallback() {
-  orderFormDialog.open(
+  void orderFormDialog.open(
     {},
     {
-      onOk: (data) => {
-        rows.value.unshift(data as OrderFormData)
-        lastResult.value = `onOk 收到数据：${JSON.stringify(data)}`
-        ElMessage.success('onOk 收到表单数据')
+      onConfirm: (data) => {
+        rows.value.unshift(data)
+        lastResult.value = `onConfirm 收到数据：${JSON.stringify(data)}`
+        ElMessage.success('onConfirm 收到表单数据')
       },
       onCancel: () => {
-        lastResult.value = 'onCancel 被调用（已取消）'
+        lastResult.value = 'onCancel 被调用（用户点了取消）'
       },
     },
   )
@@ -65,10 +72,10 @@ function createWithCallback() {
 /** 编辑：把整行数据作为 params 传入，标题自动变成「编辑订单 xxx」 */
 async function edit(row: OrderFormData) {
   // 编辑：整行作为初始值，title 一起传（组件里 params.title 优先于配置的标题）
-  const data = await orderFormDialog.open({ ...row, title: `编辑订单 ${row.id}` })
-  if (!data) return
-  Object.assign(row, data)
-  lastResult.value = JSON.stringify(data, null, 2)
+  const result = await orderFormDialog.open({ ...row, title: `编辑订单 ${row.id}` })
+  if (result.action !== DialogAction.Confirm) return
+  Object.assign(row, result.data)
+  lastResult.value = JSON.stringify(result.data, null, 2)
   ElMessage.success('已保存（演示）')
 }
 
@@ -87,26 +94,25 @@ export const orderFormDialog = createFormDialog<OrderFormData>({
   model: { drones: 120 },     // 默认值
 })
 
-// ② 新增：不传参数就是空白表单
-const data = await orderFormDialog.open()
-if (!data) return              // 取消 → null
-await createOrder(data)
+// ② 新增：不传参数就是空白表单；用 action 判断是否提交
+const result = await orderFormDialog.open()
+if (result.action !== DialogAction.Confirm) return   // 取消 / X / 超时
+await createOrder(result.data)                        // 确认时 data 一定非空
 
 // ③ 编辑：整行数据作为参数 → 同时成为初始值（标题一起传）
-const data = await orderFormDialog.open({ ...row, title: '编辑订单 ' + row.id })
+const result = await orderFormDialog.open({ ...row, title: '编辑订单 ' + row.id })
+if (result.action === DialogAction.Confirm) Object.assign(row, result.data)
 
 // ④ 确定前钩子：作为本次 open 的参数传给组件（按钮自动 loading，返回 false 不关闭）
 await orderFormDialog.open({ beforeOk: async () => (await check()) ? true : false })
 `
-
-
 </script>
 
 <template>
   <div class="demo-page">
     <DemoBlock
       title="表单弹窗"
-      desc="字段配置与 ProForm 完全一致；确定时自动校验，取消返回 null"
+      desc="字段配置与 ProForm 完全一致；确定时自动校验，结果用 DialogAction 枚举判断"
       :code="code"
     >
       <div class="demo-actions">
@@ -131,7 +137,7 @@ await orderFormDialog.open({ beforeOk: async () => (await check()) ? true : fals
       </div>
 
       <div class="demo-result">
-        <div class="demo-result-title">弹窗返回的数据</div>
+        <div class="demo-result-title">弹窗的结果（action + data）</div>
         <pre class="demo-block-code">{{ lastResult }}</pre>
       </div>
     </DemoBlock>

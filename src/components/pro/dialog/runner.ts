@@ -24,27 +24,27 @@ export interface MountRunnerArgs {
   component: Component
   /** 本次 open 的参数 */
   params: Record<string, unknown>
-  /** 固定透传的 props */
+  /** 固定透传的 props（wrapDialog options.props，作为默认值） */
   extraProps?: Record<string, unknown>
   /** 包裹器配置里的默认动作覆盖 */
   hooks?: RunnerHooks
-  /** 关闭动作与结果值（包裹器在这里 resolve Promise / 触发回调） */
-  onSettle: (payload: { action: DialogAction; value: unknown }) => void
+  /** 关闭动作与业务数据（包裹器在这里 resolve Promise / 触发回调） */
+  onSettle: (payload: { action: DialogAction | string; data: unknown }) => void
   /** DOM 卸载完成（可选） */
   onClosed?: () => void
 }
 
 /** 一次打开对应的句柄：包裹器用它做程序化关闭 / 销毁 */
 export interface MountedRunner {
-  /** 走关闭流程（由业务组件或默认动作决定），结果语义见 DialogRuntime */
-  close: (result?: unknown) => void
+  /** 走关闭流程（由业务组件或默认动作决定），动作 + 数据语义见 DialogRuntime */
+  close: (action: DialogAction | string, data?: unknown) => void
   /** 立即卸载，不等关闭动画 */
   destroy: () => void
 }
 
 /** Runner 暴露给挂载引擎的接口 */
 interface RunnerExposed {
-  close: (result?: unknown) => void
+  close: (action: DialogAction | string, data?: unknown) => void
 }
 
 /**
@@ -86,7 +86,7 @@ export function mountRunner(args: MountRunnerArgs): MountedRunner {
     params: args.params,
     extraProps: args.extraProps,
     hooks: args.hooks,
-    onSettle: (payload: { action: DialogAction; value: unknown }) => {
+    onSettle: (payload: { action: DialogAction | string; data: unknown }) => {
       if (cleanupTimer === null) cleanupTimer = setTimeout(cleanup, 400)
       args.onSettle(payload)
     },
@@ -103,8 +103,8 @@ export function mountRunner(args: MountRunnerArgs): MountedRunner {
   render(vnode, container)
 
   return {
-    close: (result) => {
-      runner?.close(result)
+    close: (action, data) => {
+      runner?.close(action, data)
     },
     destroy: () => {
       cleanup()

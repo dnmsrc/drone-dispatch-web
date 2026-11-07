@@ -8,9 +8,11 @@
 //     title: '新增订单',
 //   })
 //
-//   业务里只需要：const data = await orderFormDialog.open({ title: '编辑' })
-//   弹窗自己负责隐藏、校验、提交后关闭；业务只拿表单数据（取消时是 null）。
+//   业务里只需要：const result = await orderFormDialog.open({ title: '编辑' })
+//   if (result.action !== DialogAction.Confirm) return   // 取消 / X / 超时
+//   use(result.data)
 //
+//   弹窗自己负责隐藏、校验、提交后关闭；业务只拿「动作 + 数据」。
 // 想完全自己掌控界面的打开/关闭表现，直接写业务组件 + wrapDialog 即可。
 // ─────────────────────────────────────────────────────────────
 import FormDialog from './FormDialog.vue'

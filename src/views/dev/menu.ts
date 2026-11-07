@@ -55,6 +55,7 @@ export const devMenuGroups: DevMenuGroup[] = [
       { title: '基础用法', path: '/dev/playground/dialog/basic' },
       { title: '表单弹窗', path: '/dev/playground/dialog/form' },
       { title: '自定义内容', path: '/dev/playground/dialog/component' },
+      { title: '按钮内聚与方法重写', path: '/dev/playground/dialog/buttons' },
       { title: '进阶用法', path: '/dev/playground/dialog/advanced' },
     ],
   },

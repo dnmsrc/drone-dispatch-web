@@ -70,6 +70,11 @@ export const devRoutes: RouteRecordRaw[] = [
         meta: { title: '弹窗 · 自定义内容' },
       },
       {
+        path: 'dialog/buttons',
+        component: () => import('@/views/dev/demos/dialog-buttons.vue'),
+        meta: { title: '弹窗 · 按钮内聚与方法重写' },
+      },
+      {
         path: 'dialog/advanced',
         component: () => import('@/views/dev/demos/dialog-advanced.vue'),
         meta: { title: '弹窗 · 进阶用法' },

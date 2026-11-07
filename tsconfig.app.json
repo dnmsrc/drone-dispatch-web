@@ -11,7 +11,9 @@
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "erasableSyntaxOnly": true,
+    // 弹窗结果标识用真 enum（DialogAction），enum 属于"不可擦除语法"，
+    // 这里必须放开（项目未使用 namespace / 参数属性等其它不可擦除语法）
+    "erasableSyntaxOnly": false,
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]

@@ -5,6 +5,9 @@
 // 它自己写 <el-dialog>、自己写确定/取消按钮，并通过 defineExpose({ open })
 // 覆盖包裹器的默认「打开」动作 —— 每次打开都重新灌入初始值、清空校验提示。
 // 业务侧想用配置式表单时，直接 wrapDialog(FormDialog, { name, props: { fields } })。
+//
+// 底部按钮内聚在本组件里，不接受外部重写；需要别的按钮就写自己的弹窗组件，
+// 在里面调 useDialog() 的 confirm / cancel / close。
 // ─────────────────────────────────────────────────────────────
 import { reactive, ref } from 'vue'
 import { ElButton, ElDialog } from 'element-plus'
@@ -16,9 +19,19 @@ import type { FormDialogProps } from './types'
 
 defineOptions({ inheritAttrs: false })
 
-const props = defineProps<FormDialogProps>()
+const props = withDefaults(defineProps<FormDialogProps>(), {
+  title: '',
+  width: 640,
+  labelWidth: '96px',
+  defaultSpan: 24,
+  gutter: 16,
+  size: 'default',
+  okText: '确定',
+  cancelText: '取消',
+})
 
-const { visible, params, close, cancel } = useDialog<
+// 包裹器只提供方法：visible / params / confirm / cancel
+const { visible, params, confirm, cancel } = useDialog<
   Record<string, unknown>,
   Record<string, unknown>
 >()
@@ -46,7 +59,7 @@ function applyModel() {
  */
 function open() {
   applyModel()
-  title.value = params.title as string | undefined || props.title || ''
+  title.value = (params.title as string | undefined) || props.title || ''
   formRef.value?.clearValidate()
   visible.value = true
 }
@@ -76,7 +89,7 @@ async function handleOk() {
 
   const valid = (await formRef.value?.validate()) ?? false
   if (!valid) return
-  close(snapshotModel(formModel))
+  confirm(snapshotModel(formModel))
 }
 </script>
 
@@ -86,7 +99,6 @@ async function handleOk() {
     class="pro-dialog"
     :title="title"
     :width="props.width ?? 640"
-    align-center
   >
     <p v-if="props.description" class="pro-dialog-desc">{{ props.description }}</p>
 
@@ -100,10 +112,11 @@ async function handleOk() {
       :size="props.size ?? 'default'"
     />
 
+    <!-- 按钮内聚在组件内部：取消走 cancel()，确定走 beforeOk + 校验 + confirm(快照) -->
     <template #footer>
-      <el-button @click="cancel">{{ props.cancelText ?? '取消' }}</el-button>
+      <el-button @click="cancel">{{ props.cancelText }}</el-button>
       <el-button type="primary" :loading="okLoading" @click="handleOk">
-        {{ props.okText ?? '确定' }}
+        {{ props.okText }}
       </el-button>
     </template>
   </el-dialog>

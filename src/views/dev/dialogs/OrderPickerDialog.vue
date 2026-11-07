@@ -3,7 +3,7 @@
 // 业务弹窗组件示例：弹窗里放表格，选中一行后关闭并回传
 //
 // 和普通列表组件一样：自己写 <el-dialog>，自己写搜索框和表格；
-// 选中后调 close(row) —— 参数（初始搜索词）从 useDialog().params 拿。
+// 选中后调 confirm(row) —— 参数（初始搜索词）从 useDialog().params 拿。
 // ─────────────────────────────────────────────────────────────
 import { computed, ref } from 'vue'
 import { useDialog } from '@/components/pro'
@@ -13,9 +13,15 @@ import type { OrderPickerParams } from './order-picker.dialog'
 
 defineOptions({ inheritAttrs: false })
 
-const { visible, params, close, cancel } = useDialog<OrderPickerParams, MockOrder>()
+// 入参用标准 defineProps 接收（三层默认：组件默认 < options.props < open 入参）
+const props = withDefaults(defineProps<OrderPickerParams>(), {
+  title: '选择订单',
+  keyword: '',
+})
 
-const keyword = ref(params.keyword ?? '')
+const { visible, confirm, cancel } = useDialog<OrderPickerParams, MockOrder>()
+
+const keyword = ref(props.keyword)
 
 const rows = computed(() => {
   const text = keyword.value.trim().toLowerCase()
@@ -28,9 +34,9 @@ const rows = computed(() => {
   )
 })
 
-/** 选中一行：关闭弹窗并把这一行交回调用方（= 点"确定"） */
+/** 选中一行：确认关闭并把这一行交回调用方（结果 action = DialogAction.Confirm） */
 function pick(row: unknown) {
-  close(row as MockOrder)
+  confirm(row as MockOrder)
 }
 </script>
 
@@ -38,11 +44,10 @@ function pick(row: unknown) {
   <el-dialog
     v-model="visible"
     class="pro-dialog"
-    :title="params.title ?? '选择订单'"
+    :title="props.title"
     width="840px"
-    align-center
   >
-    <p v-if="params.description" class="pro-dialog-desc">{{ params.description }}</p>
+    <p v-if="props.description" class="pro-dialog-desc">{{ props.description }}</p>
 
     <el-input
       v-model="keyword"

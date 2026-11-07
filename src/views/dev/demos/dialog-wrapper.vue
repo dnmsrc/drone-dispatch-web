@@ -1,10 +1,15 @@
 <script setup lang="ts">
-// 弹窗 · 包裹器架构：业务组件 + 平行 ts 配置文件，业务只 await open() 拿结果
+// 弹窗 · 架构与职责：业务组件 + 平行 ts 配置文件，业务只 await「动作 + 数据」
+//
+// 关闭动作是 DialogAction 枚举（确认 / 取消 / 关闭 / 超时 / 被顶掉 / 销毁），
+// 业务还可以定义自己的动作（本例的「稍后提醒」）。判断结果一律用 action。
 import { computed, ref } from 'vue'
-import { getDialogHandle } from '@/components/pro'
+import { DialogAction, getDialogHandle } from '@/components/pro'
 import {
   CONTROLLED_AUTO_VALUE,
+  CONTROLLED_LATER_VALUE,
   CONTROLLED_OK_VALUE,
+  ControlledAction,
   controlledDialog,
 } from '../dialogs/controlled.dialog'
 import { overrideDialog } from '../dialogs/override.dialog'
@@ -17,29 +22,59 @@ const lastPromise = ref('（还没有结果）')
 /** 覆盖动作演示的结果 */
 const overrideResult = ref('（还没有操作）')
 
-/** open 并 await：业务代码的标准写法 */
+/** DialogAction 的中文语义（演示页显示用；业务里直接用枚举值判断即可） */
+const ACTION_LABEL: Record<string, string> = {
+  [DialogAction.Confirm]: '确认',
+  [DialogAction.Cancel]: '取消',
+  [DialogAction.Close]: '关闭（X / ESC / 遮罩）',
+  [DialogAction.Timeout]: '超时自关',
+  [DialogAction.Replace]: '被新的 open 顶掉',
+  [DialogAction.Destroy]: '已销毁',
+}
+
+/** 把「动作 + 数据」格式化成一行 */
+function formatResult(action: string, data: unknown) {
+  const label = ACTION_LABEL[action] ?? '业务自定义动作'
+  const value = data === null ? 'null' : `「${String(data)}」`
+  return `action: ${action}（${label}），data: ${value}`
+}
+
+/** open 并 await：业务代码的标准写法（用 action 判断结果） */
 async function openIt() {
   lastCall.value = 'await controlledDialog.open({ content: … })'
   const result = await controlledDialog.open({
     content: '打开后，关闭（确定/取消/X）都由弹窗自己做，调用方只等结果。',
   })
-  lastPromise.value = result === null ? 'null（取消 / 点了 X）' : `「${result}」`
+  lastPromise.value = formatResult(result.action, result.data)
 }
 
-/** 回调风格：不 await，结果走回调 */
-function openWithCallback() {
-  lastCall.value = 'controlledDialog.open(params, { onOk, onCancel, onClose })'
-  void controlledDialog.open(
-    { content: '这次用回调写法，结果通过 onOk / onCancel / onClose 交回。' },
+/** 业务自定义动作：组件里点「稍后提醒」，回传的是业务枚举 + 数据 */
+async function openRemindLater() {
+  lastCall.value = 'await controlledDialog.open(…) → 组件里 close(ControlledAction.RemindLater, 时间)'
+  const result = await controlledDialog.open({
+    content: '这次点底部「稍后提醒」：关闭动作是业务定义的 RemindLater，不是确认也不是取消。',
+  })
+  if (result.action === ControlledAction.RemindLater) {
+    lastPromise.value = `${formatResult(result.action, result.data)} ← 调用方按业务动作分支处理`
+    return
+  }
+  lastPromise.value = `${formatResult(result.action, result.data)}（这次没有走「稍后提醒」）`
+}
+
+/** 回调风格：onResult 拿完整结果，也可按动作拆成 onConfirm / onCancel / onClose / onTimeout */
+async function openWithCallback() {
+  lastCall.value = 'controlledDialog.open(params, { onResult, onConfirm, onCancel, onClose })'
+  await controlledDialog.open(
+    { content: '这次用回调写法：onResult 拿到完整结果，onConfirm / onCancel / onClose 按动作拆开。' },
     {
-      onOk: (result) => {
-        lastPromise.value = `onOk 收到「${result}」`
+      onResult: (result) => {
+        lastPromise.value = `onResult → ${formatResult(result.action, result.data)}`
       },
       onCancel: () => {
-        lastPromise.value = 'onCancel 被调用'
+        lastPromise.value += '（同时触发了 onCancel）'
       },
       onClose: () => {
-        lastPromise.value = 'onClose 被调用（点 X / 遮罩 / ESC）'
+        lastPromise.value += '（同时触发了 onClose）'
       },
     },
   )
@@ -52,7 +87,7 @@ async function openAutoClose() {
     content: '这个弹窗会在 3 秒后由它自己关闭，调用方没有参与关闭。',
     autoClose: 3,
   })
-  lastPromise.value = result === null ? 'null（取消 / 点了 X）' : `「${result}」`
+  lastPromise.value = formatResult(result.action, result.data)
 }
 
 /** 覆盖默认动作：组件自己 defineExpose({ open, close }) */
@@ -61,7 +96,7 @@ async function overrideActions() {
     title: '覆盖默认动作的弹窗',
     content: '看提示消息：打开、关闭都走组件里自己写的方法。',
   })
-  overrideResult.value = result === null ? 'null（取消 / 关闭）' : `「${result}」`
+  overrideResult.value = formatResult(result.action, result.data)
 }
 
 // ── 下面只是「包裹器内部能力」的调试演示，业务代码不要这样写 ──
@@ -72,7 +107,7 @@ const internalOpen = computed(() => handle.isOpen)
 function handleClose() {
   const closed = handle.close()
   lastCall.value = closed
-    ? 'handle.close() → true（内部能力，业务代码不用）'
+    ? 'handle.close() → true（内部能力，默认按取消结束；业务代码不用）'
     : 'handle.close() → false（当前没有打开的弹窗）'
 }
 
@@ -84,13 +119,13 @@ function handleDestroy() {
 }
 
 const configCode = `// ① 业务弹窗组件：src/views/order/OrderDialog.vue —— 正常写弹窗
-const { visible, params, close, cancel } = useDialog<OrderParams, Order>()
+const { visible, params, confirm, cancel } = useDialog<OrderParams, Order>()
 
 <el-dialog v-model="visible" title="订单" width="640px">
   <el-input v-model="form.owner" />
   <template #footer>
     <el-button @click="cancel">取消</el-button>
-    <el-button @click="close(form)">确定</el-button>
+    <el-button @click="confirm(form)">确定</el-button>
   </template>
 </el-dialog>
 
@@ -102,35 +137,50 @@ export const orderDialog = wrapDialog<OrderParams, Order>(OrderDialog, {
   name: 'order',            // 包裹器名字（日志 / 调试用）
 })
 
-// ③ 业务里：只认这个 ts 文件，只调 open()
+// ③ 业务里：只认这个 ts 文件，只调 open()，用 action 判断结果
+import { DialogAction } from '@/components/pro'
 import { orderDialog } from '@/views/order/OrderDialog.dialog'
-const data = await orderDialog.open({ id: 1 })   // null = 取消 / 关闭`
 
-const usageCode = `// 业务侧只做一件事：await open()，拿弹窗里出来的结果
+const result = await orderDialog.open({ id: 1 })
+if (result.action !== DialogAction.Confirm) return   // 取消 / X / 超时都在这
+use(result.data)`
+
+const usageCode = `// 业务侧只做一件事：await open()，拿到「动作枚举 + 数据」
 const result = await controlledDialog.open({ content: '…' })
-if (!result) return                  // null = 用户取消 / 点了 X
 
-// 回调写法（第二个参数可以是对象，也可以直接是函数）
+// DialogAction 内置语义（全部是明确的枚举成员，不用猜 null 的含义）
+switch (result.action) {
+  case DialogAction.Confirm: save(result.data); break   // 确认（data 收回来的值）
+  case DialogAction.Cancel:  break                       // 点了取消按钮
+  case DialogAction.Close:   break                       // 点 X / ESC / 遮罩
+  case DialogAction.Timeout: break                       // 弹窗自己倒计时关的
+  case DialogAction.Replace: break                       // 被新的 open 顶掉
+  default:                   break                       // 业务自定义动作
+}
+
+// 业务自定义动作：在自己的平行 ts 里定义枚举，组件里 close(动作, 数据)
+export enum ControlledAction { RemindLater = 'remind-later' }
+close(ControlledAction.RemindLater, '明天 09:00')
+if (result.action === ControlledAction.RemindLater) remindLater(result.data)
+
+// 回调风格：onResult 拿完整结果；也可按动作拆成 onConfirm / onCancel / onClose / onTimeout
 controlledDialog.open({ content: '…' }, {
-  onOk: (result) => { … },
+  onConfirm: (data) => { … },
   onCancel: () => { … },
   onClose: () => { … },
 })
 
-// 弹窗自己决定何时关：这里只是告诉它「打开后自己倒计时 3 秒」
-await controlledDialog.open({ content: '…', autoClose: 3 })
-
 // 没有 close() / destroy() —— 打开、关闭、销毁都是弹窗自己的事，
 // 业务代码不关心弹窗的生命周期`
 
-const overrideCode = `// 业务组件里自己定义打开 / 关闭动作
+const overrideCode = `// 业务组件里自己定义打开 / 关闭动作（覆盖默认动作）
 function open(p) {
-  // 组件自己的准备逻辑（埋点、拉数据…）
   visible.value = true       // 最后一定要自己显示
 }
-function close(result) {
-  if (result === undefined) cancel()
-  else finish(result)        // finish = useDialog().close，负责 settle 结果
+function close(action, data) {
+  if (action === DialogAction.Confirm) return settle(DialogAction.Confirm, data)
+  if (action === DialogAction.Cancel) return cancel()
+  settle(action, data)       // 其它动作原样交回
 }
 defineExpose({ open, close })  // ← 暴露后包裹器优先调它
 
@@ -140,13 +190,14 @@ const internalCode = `// 仅框架 / 调试使用：包裹器内部句柄（业�
 import { getDialogHandle } from '@/components/pro'
 const handle = getDialogHandle(controlledDialog)
 
-handle.isOpen                    // 有没有打开中的实例（响应式）
-handle.close()                   // 关闭 → 视为取消，结果 null
-handle.close('value')            // 关闭 → 视为"确定"，回传 value
-handle.destroy()                 // 立即销毁，不等关闭动画
+handle.isOpen                             // 有没有打开中的实例（响应式）
+handle.close()                            // 关闭 → 动作 = Cancel，结果 { action, data: null }
+handle.close(DialogAction.Confirm, '值')  // 关闭 → 动作 = Confirm + 数据
+handle.destroy()                          // 立即销毁（调用方收到 action = Destroy）
 
 // 这些能力由包裹器自己在"重复 open 时销毁旧实例"等场景使用；
 // 业务侧的正常路径只有 await open()。`
+
 </script>
 
 <template>
@@ -161,7 +212,7 @@ handle.destroy()                 // 立即销毁，不等关闭动画
           <div class="wrapper-arch">
             <p><b>业务弹窗组件</b>：完全正常的 Vue 组件，自己写 <code>&lt;el-dialog&gt;</code>、自己写按钮和关闭逻辑。</p>
             <p><b>平行位置的 ts</b>：用 <code>wrapDialog(组件, { name })</code> 包成句柄并导出。</p>
-            <p><b>业务代码</b>：只 import 这个 ts，<code>await .open()</code> 拿结果；打开、关闭、销毁都不归它管。</p>
+            <p><b>业务代码</b>：只 import 这个 ts，<code>await .open()</code> 拿到 <code>{ action, data }</code>；打开、关闭、销毁都不归它管。</p>
             <p>包裹器负责挂载到 body、注入 visible/params、收集结果；弹窗自己负责什么时候显示、什么时候关。</p>
           </div>
         </template>
@@ -169,12 +220,13 @@ handle.destroy()                 // 立即销毁，不等关闭动画
     </DemoBlock>
 
     <DemoBlock
-      title="② 业务代码只 await 结果"
-      desc="没有 close() / destroy()：弹窗自己关，调用方只拿数据"
+      title="② 业务代码只 await 结果：动作是枚举"
+      desc="DialogAction 明确标识「确认 / 取消 / 关闭 / 超时」；业务还能定义自己的动作"
       :code="usageCode"
     >
       <div class="demo-actions">
         <el-button type="primary" @click="openIt">await open() 打开</el-button>
+        <el-button type="success" plain @click="openRemindLater">业务自定义动作（稍后提醒）</el-button>
         <el-button @click="openWithCallback">open() + 回调</el-button>
         <el-button type="warning" plain @click="openAutoClose">
           弹窗自己 3 秒后关闭
@@ -187,7 +239,7 @@ handle.destroy()                 // 立即销毁，不等关闭动画
           <pre class="demo-block-code">{{ lastCall }}</pre>
         </div>
         <div class="demo-result-row">
-          <span class="demo-result-title">结果</span>
+          <span class="demo-result-title">结果（动作 + 数据）</span>
           <pre class="demo-block-code">{{ lastPromise }}</pre>
         </div>
       </div>
@@ -195,7 +247,7 @@ handle.destroy()                 // 立即销毁，不等关闭动画
 
     <DemoBlock
       title="③ 组件覆盖默认的打开 / 关闭"
-      desc="组件 defineExpose({ open, close }) 后，包裹器优先调用组件自己的方法"
+      desc="组件 defineExpose({ open, close }) 后，包裹器优先调用组件自己的方法（close 收「动作 + 数据」）"
       :code="overrideCode"
     >
       <div class="demo-actions">
@@ -248,7 +300,8 @@ handle.destroy()                 // 立即销毁，不等关闭动画
       </div>
 
       <div class="demo-state">
-        <el-tag type="info" size="small">确定按钮回传「{{ CONTROLLED_OK_VALUE }}」</el-tag>
+        <el-tag type="info" size="small">确定回传「{{ CONTROLLED_OK_VALUE }}」</el-tag>
+        <el-tag type="info" size="small">稍后提醒回传「{{ CONTROLLED_LATER_VALUE }}」</el-tag>
         <el-tag type="info" size="small">倒计时结束回传「{{ CONTROLLED_AUTO_VALUE }}」</el-tag>
       </div>
     </DemoBlock>

@@ -23,7 +23,11 @@ export interface MessageDialogParams {
 /**
  * 消息弹窗：确定回传 true，取消 / 关闭回传 null。
  * 组件自己定义了 open/close 吗？没有 —— 走的包裹器默认动作（visible 置 true/false）。
+ *
+ * options.props 是「中间层默认值」：组件 withDefaults 是最低默认，open() 入参优先级最高。
+ * 这里给一个默认标题，业务 open({ title }) 时会被覆盖。
  */
 export const messageDialog = wrapDialog<MessageDialogParams, boolean>(MessageDialog, {
   name: 'message',
+  props: { title: '默认标题（来自 wrapDialog options.props）' },
 })
