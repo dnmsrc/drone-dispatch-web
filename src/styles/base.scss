@@ -107,3 +107,31 @@ a {
 .section-title:first-child {
   margin-top: 0;
 }
+
+// 价格明细列表（原型 order 详情 .price-list：行间细线分隔，total 加粗上边框）
+.price-list {
+  border: 1px solid theme.$border-color-lighter;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: theme.$space-md;
+  padding: 9px 14px;
+  font-size: theme.$font-size-sm;
+  color: theme.$text-regular;
+
+  & + .price-row {
+    border-top: 1px solid theme.$border-color-lighter;
+  }
+}
+
+.price-row.total {
+  border-top: 1px solid theme.$border-color;
+  background: theme.$bg-hover;
+  font-weight: 600;
+  color: theme.$text-primary;
+}
