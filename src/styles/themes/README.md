@@ -1,13 +1,18 @@
 # 主题包（构建期换肤）
 
 本目录下每个**平级文件夹就是一套完整主题**，结构必须与 `default/` 完全一致。
-当前生效的主题由构建期环境变量 `APP_THEME` 决定（默认 `default`），
+当前生效的主题由构建期变量 `APP_THEME` 决定（默认 `default`），
 在 [vite.config.ts](../../../vite.config.ts) 中通过 `@theme` 别名解析到对应文件夹：
 
 ```ts
-const APP_THEME = process.env.APP_THEME ?? 'default'
+// 优先级：shell 环境变量 APP_THEME > .env / .env.[mode] 里的 APP_THEME > default
+const appTheme = process.env.APP_THEME ?? env.APP_THEME ?? 'default'
 // '@theme' → src/styles/themes/<APP_THEME>
 ```
+
+`APP_THEME` 的推荐配置位置是工程根目录的环境文件 `.env` / `.env.production`
+（与端口、接口地址等其它构建侧变量统一管理，见根目录 `.env` 注释）；
+shell 环境变量仍可临时覆盖它。
 
 ## 目录结构（每套主题都一样）
 
@@ -34,8 +39,13 @@ themes/<主题名>/
    - `--app-*` CSS 变量随 `index.scss` 自动更新；
    - Element Plus 控件的基色/高度/字号经 `element/index.scss` 的 `@forward ... with`
      在**编译期**注入，无需逐个改组件。
-3. 构建时指定主题名即可，业务组件与组件库代码一行都不用改：
+3. 指定主题名即可生效，业务组件与组件库代码一行都不用改。两种方式任选：
    ```bash
+   # 方式一（推荐，持久配置）：在 .env 或 .env.production 里写
+   # APP_THEME=dark
+   pnpm build
+
+   # 方式二（临时覆盖，shell 环境变量优先级最高）
    # Git Bash
    APP_THEME=dark pnpm build
    # PowerShell

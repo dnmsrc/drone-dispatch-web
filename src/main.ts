@@ -24,8 +24,10 @@ async function bootstrap() {
 
   app.use(createPinia())
 
-  // 组件测试场：仅开发环境注册（生产构建时该分支被静态剔除，演示代码不会进产物）
-  if (import.meta.env.DEV) {
+  // 组件测试场：仅在 VITE_ENABLE_DEV_PANEL=true 时注册（开发 .env 开、生产 .env 关）。
+  // 直接用字面量 import.meta.env.VITE_* 判断，生产构建时该变量被静态替换为 'false'，
+  // 整个分支连同动态 import 一起被剔除，演示代码不会进正式产物。
+  if (import.meta.env.VITE_ENABLE_DEV_PANEL === 'true') {
     const { devRoutes } = await import('./router/dev')
     for (const route of devRoutes) router.addRoute(route)
   }
