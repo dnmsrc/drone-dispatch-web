@@ -10,7 +10,7 @@
 // 在里面调 useDialog() 的 confirm / cancel / close。
 // ─────────────────────────────────────────────────────────────
 import { reactive, ref } from 'vue'
-import { ElButton, ElDialog } from 'element-plus'
+import { ElAlert, ElButton, ElDialog } from 'element-plus'
 import ProForm from '../ProForm.vue'
 import type { ProFormExpose } from '../types'
 import { cloneValue, defaultValueOf, snapshotModel } from '../helpers'
@@ -23,10 +23,12 @@ const props = withDefaults(defineProps<FormDialogProps>(), {
   title: '',
   width: 640,
   labelWidth: '96px',
+  labelPosition: 'right',
   defaultSpan: 24,
   gutter: 16,
   size: 'default',
   okText: '确定',
+  okType: 'primary',
   cancelText: '取消',
 })
 
@@ -93,13 +95,23 @@ async function handleOk() {
 
 <template>
   <el-dialog v-model="visible" class="pro-dialog" :title="title" :width="props.width ?? 640">
-    <p v-if="props.description" class="pro-dialog-desc">{{ props.description }}</p>
+    <!-- 说明两种形态：灰字（默认）/ 橙色警示条（descriptionType: 'warning'） -->
+    <el-alert
+      v-if="props.description && props.descriptionType === 'warning'"
+      class="pro-dialog-alert"
+      :title="props.description"
+      type="warning"
+      show-icon
+      :closable="false"
+    />
+    <p v-else-if="props.description" class="pro-dialog-desc">{{ props.description }}</p>
 
     <ProForm
       ref="formRef"
       :model="formModel"
       :fields="props.fields"
       :label-width="props.labelWidth ?? '96px'"
+      :label-position="props.labelPosition ?? 'right'"
       :default-span="props.defaultSpan ?? 24"
       :gutter="props.gutter ?? 16"
       :size="props.size ?? 'default'"
@@ -108,7 +120,7 @@ async function handleOk() {
     <!-- 按钮内聚在组件内部：取消走 cancel()，确定走 beforeOk + 校验 + confirm(快照) -->
     <template #footer>
       <el-button @click="cancel">{{ props.cancelText }}</el-button>
-      <el-button type="primary" :loading="okLoading" @click="handleOk">
+      <el-button :type="props.okType ?? 'primary'" :loading="okLoading" @click="handleOk">
         {{ props.okText }}
       </el-button>
     </template>

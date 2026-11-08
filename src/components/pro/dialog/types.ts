@@ -326,10 +326,14 @@ export interface FormDialogProps {
   title?: string
   /** 标题下的灰色说明 */
   description?: string
+  /** 说明呈现形态：plain 灰字（默认）；warning 橙色图标警示条（拒单退款类强提示） */
+  descriptionType?: 'plain' | 'warning'
   /** 宽度，默认 640 */
   width?: string | number
   /** 标签宽度，默认 96px */
   labelWidth?: string | number
+  /** 标签布局位置，默认 right；窄弹窗用 top（原型拒单同款排版） */
+  labelPosition?: 'left' | 'right' | 'top'
   /** 默认栅格宽度，默认 24 */
   defaultSpan?: number
   /** 栅格间距，默认 16 */
@@ -338,6 +342,8 @@ export interface FormDialogProps {
   size?: 'large' | 'default' | 'small'
   /** 确定按钮文字，默认"确定" */
   okText?: string
+  /** 确定按钮颜色，默认 primary；破坏性动作（拒单退款等）传 danger */
+  okType?: 'primary' | 'success' | 'warning' | 'danger' | 'info'
   /** 取消按钮文字，默认"取消" */
   cancelText?: string
 }

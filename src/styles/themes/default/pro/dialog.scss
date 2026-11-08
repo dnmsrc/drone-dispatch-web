@@ -26,6 +26,11 @@
   color: var(--app-text-secondary);
 }
 
+// 警示说明条（FormDialog descriptionType:'warning'，拒单退款类强提示）
+.pro-dialog-alert {
+  margin-bottom: 12px;
+}
+
 .pro-dialog-text {
   font-size: var(--app-font-size-base);
   line-height: 1.7;
