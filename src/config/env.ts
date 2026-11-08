@@ -25,11 +25,11 @@ function asNumber(value: string | undefined, fallback: number): number {
 
 export const env = {
   /** 应用品牌名 */
-  appName: import.meta.env.VITE_APP_NAME || '星穹 SkyShow',
+  appName: import.meta.env.VITE_APP_NAME || '无人机 SkyShow',
   /** 管理后台标题 */
-  appTitle: import.meta.env.VITE_APP_TITLE || '星穹派单管理后台',
+  appTitle: import.meta.env.VITE_APP_TITLE || '无人机 SkyShow 派单管理后台',
   /** 页脚品牌文案（登录页底部等品牌展示位） */
-  appFooter: import.meta.env.VITE_APP_FOOTER || '星穹 SkyShow · 无人机编队灯光表演预约派单平台',
+  appFooter: import.meta.env.VITE_APP_FOOTER || '无人机 SkyShow · 编队灯光表演预约派单平台',
   /** 后端接口基础地址 */
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '/api',
   /** 请求超时（毫秒） */

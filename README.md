@@ -3,7 +3,7 @@
 > 本目录是**独立 Git 仓库**（仓库名即目录名 `drone-dispatch-web`），`git log` 只包含前端相关提交，
 > 与顶层文档仓、`drone-dispatch-h5`、`drone-dispatch-server` 互不混杂。仓库结构说明见上级 `README.md`。
 
-星穹 SkyShow 无人机派单系统 · Web 管理后台，技术栈 **Vue 3 + TypeScript + Vite + Element Plus + Sass**。
+无人机 SkyShow 派单系统 · Web 管理后台，技术栈 **Vue 3 + TypeScript + Vite + Element Plus + Sass**。
 
 - 原型基线：`drone-dispatch-prototype/admin`（Vue3 + Vite + Element Plus + Pinia + ECharts，若伊 RuoYi 风格）
 - 负责：登录鉴权、看板、订单流转（接单/拒单/开始/完成）、退款审批、档期与配置、字典、用户与评价、场地
@@ -565,7 +565,7 @@ Sidebar 直接遍历该数组生成菜单 —— **新增页面 = 在 menuRoutes
    生产构建时该条件被静态替换为 `false`，整段分支（含动态 import）被剔除，**演示代码不进产物**。
 
 已验证：`npm run build` 后对 `dist/` 全量搜索「组件测试场 / dev/playground / ProSearch」均无命中；
-生产预览下访问 `/dev/playground` 会落到 `/:pathMatch(.*)*` 重定向回 `/index`（标题「首页 - 星穹派单管理后台」）。
+生产预览下访问 `/dev/playground` 会落到 `/:pathMatch(.*)*` 重定向回 `/index`（标题「首页 - 无人机 SkyShow 派单管理后台」）。
 （说明：`src/components/pro/dialog` 是生产要用的公共组件，会正常打进产物；只有测试场与演示页被剔除。）
 
 ### 新增一个演示页

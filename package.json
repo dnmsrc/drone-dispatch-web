@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "星穹 SkyShow 无人机派单系统 · Web 管理后台（正式版）",
+  "description": "无人机 SkyShow 派单系统 · Web 管理后台（正式版）",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
