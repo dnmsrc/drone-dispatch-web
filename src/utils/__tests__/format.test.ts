@@ -7,12 +7,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   addonsText,
+  CONSULT_STATUS_MAP,
   fmtMoney,
   fmtTime,
   orderSummary,
   patternsText,
   STATUS_MAP,
   todayStr,
+  venueSub,
 } from '../format'
 
 describe('format · fmtMoney', () => {
@@ -104,5 +106,41 @@ describe('format · STATUS_MAP 结构完整性', () => {
       'REFUNDING',
       'REFUNDED',
     ])
+  })
+})
+
+describe('format · CONSULT_STATUS_MAP 结构完整性', () => {
+  it('每个咨询状态都有文案，且必须带 type（StatusTag 渲染依赖）', () => {
+    for (const [status, conf] of Object.entries(CONSULT_STATUS_MAP)) {
+      expect(conf.text, status).toBeTruthy()
+      expect(conf.type, status).toBeTruthy()
+    }
+  })
+
+  it('契约六状态齐全且顺序一致（页签渲染顺序依赖键序）', () => {
+    expect(Object.keys(CONSULT_STATUS_MAP)).toEqual([
+      'PENDING',
+      'RECEIVED',
+      'DISPATCHED',
+      'CONFIRMED',
+      'REJECTED',
+      'ABANDONED',
+    ])
+  })
+})
+
+describe('format · venueSub', () => {
+  it('类型 + 地址用「·」连接', () => {
+    expect(venueSub({ type: 'preset', address: '杭州市滨江区江南大道 100 号' })).toBe(
+      '预设场地 · 杭州市滨江区江南大道 100 号',
+    )
+  })
+
+  it('未知类型只显示地址；无类型无地址返回「—」（与原型 venueSub 行为一致）', () => {
+    expect(venueSub({ type: 'unknown', address: '某处' })).toBe('某处')
+    expect(venueSub({ type: 'map' })).toBe('地图选点')
+    expect(venueSub({})).toBe('—')
+    expect(venueSub(null)).toBe('—')
+    expect(venueSub(undefined)).toBe('—')
   })
 })

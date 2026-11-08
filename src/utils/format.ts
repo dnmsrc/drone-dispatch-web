@@ -119,3 +119,43 @@ export function patternsText(patterns: string[] | null | undefined): string {
   if (!patterns || !patterns.length) return '无'
   return patterns.map((k) => PATTERN_LABELS[k] ?? k).join('、')
 }
+
+/** 咨询单状态字典（与契约 docs/consult-workflow.md 一一对应：待接待红/已接待橙/已派单蓝/已确认绿/驳回废弃灰） */
+export const CONSULT_STATUS_MAP: Record<string, StatusConf> = {
+  PENDING: { text: '待接待', type: 'danger' },
+  RECEIVED: { text: '已接待', type: 'warning' },
+  DISPATCHED: { text: '已派单待确认', type: 'primary' },
+  CONFIRMED: { text: '已确认', type: 'success' },
+  REJECTED: { text: '已驳回', type: 'info' },
+  ABANDONED: { text: '已废弃', type: 'info' },
+}
+
+/** 表演内容复杂度字典 */
+export const CONTENT_MODE_LABELS: Record<string, string> = {
+  template: '预设模板',
+  deep: '深度定制',
+  matrix: '多矩阵编排',
+}
+
+/** 画面数量档位字典（H5 问卷以 low/mid/high 提交） */
+export const SCREEN_LABELS: Record<string, string> = {
+  low: '≤3 个画面',
+  mid: '4-8 个画面',
+  high: '9 个以上画面',
+}
+
+/** 编队运动方式字典 */
+export const MOTION_LABELS: Record<string, string> = {
+  static: '静态编队',
+  dynamic: '动态编队',
+}
+
+/** 场地副行文案：类型 · 地址（咨询/订单/退款列表的场地列通用），无有效信息返回「—」 */
+export function venueSub(v: { type?: string; address?: string } | null | undefined): string {
+  if (!v) return '—'
+  const parts: string[] = []
+  const typeText = VENUE_TYPE_LABELS[v.type ?? '']
+  if (typeText) parts.push(typeText)
+  if (v.address) parts.push(v.address)
+  return parts.join(' · ') || '—'
+}
