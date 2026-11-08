@@ -7,10 +7,11 @@
 //   2) 单元格渲染优先级：slot（具名插槽）> render（ProCell）> formatter > 默认 row[prop]
 //   3) 统一处理：多选/序号列、多级表头、操作列（含「更多」下拉与二次确认）、底部分页
 //   4) autoFit 自适应高度（默认关，传入才开）——列表页「不撑出页面滚动条」的标准：
-//      内容装得下就自然撑到内容高（外部空间再大也不再多占）；装不下就把 body
-//      钳制在「表格顶缘→最近滚动容器可见底缘 − bottomGap − 分页条」的内部滚动，
-//      表头与分页始终留在视口内。计算内核在 ./helpers.ts（calcAutoMaxHeight，带单测），
-//      标准定义见 ./types.ts 的 TableAutoFitOptions；显式 maxHeight 优先于 autoFit
+//      内容装得下（含表头）→ 不设限自然渲染，页面与表格都没有滚动条；装不下才把 body
+//      固定在「表格顶缘→滚动容器可见底缘 − bottomGap − 分页区全部占用」的可用高，
+//      表头与分页始终留在视口内、页面绝不整体滚动。计算内核见 ./helpers.ts
+//      （calcAutoMaxHeight / occupiedBelowToScroller，带单测）；标准定义见 ./types.ts
+//      的 TableAutoFitOptions；显式 height / maxHeight 优先于 autoFit
 //
 // 类型契约见 ./types.ts（Lead 维护，本组件不修改该文件）
 // 视觉样式集中在当前主题包（@theme）的 pro/table.scss，本文件只保留必要的 scoped 样式
@@ -19,7 +20,12 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessageBox, type TableInstance } from 'element-plus'
 import { ArrowDown } from '@element-plus/icons-vue'
 import ProCell from './ProCell'
-import { calcAutoMaxHeight, visibleBottomLimit } from './helpers'
+import {
+  belowSpaceToScroller,
+  calcAutoMaxHeight,
+  occupiedBelowToScroller,
+  visibleBottomLimit,
+} from './helpers'
 import type {
   CellContext,
   TableActionButton,
@@ -58,7 +64,7 @@ interface ProTableProps {
   pagination?: TablePagination | null
   /** 空数据文案 */
   emptyText?: string
-  /** 表格高度（透传 el-table） */
+  /** 表格高度（透传 el-table；显式传入时优先于 autoFit） */
   height?: string | number
   /** 表格最大高度（透传 el-table；显式传入时优先于 autoFit） */
   maxHeight?: string | number
@@ -357,30 +363,47 @@ function onRowClick(row: Record<string, any>, column: unknown, event: Event): vo
 
 /* ════════════════════════════════════════════════════════════
  * 五、autoFit 自适应高度（默认关；标准见文件头与 types.ts）
- *   触发量测的三个世界事件：窗口 resize、容器尺寸变化（侧栏折叠/搜索卡
- *   折叠展开都会改变表格顶缘或可用区）、autoFit 配置切换。
- *   rAF 节流合并，避免 RO → 改高 → RO 的回环放大。
+ *   实现要点：用「固定 height」而不是 max-height —— 表格恒为可用高，
+ *   文档高度不随数据行数变化 → 页面永远不出整体滚动条：
+ *     · 内容不足 → 表格撑开到「不出现任何滚动条的最大」（可用高），
+ *       卡片贴到视口底不留灰白带；行保持原型行高，富余是表格底部的
+ *       白色空档（与卡片同色无缝），不把数据行拉变形
+ *     · 内容过多 → 同一可用高，body 内部滚动，表头/分页留在视口内
+ *   可用高 = 表格顶缘 → 最近滚动容器可见底缘 − bottomGap − 分页区全部
+ *   占用（分页条含 margin、卡片 padding/margin、页面 padding 逐层累加；
+ *   漏算任何一段都会把文档顶出页面滚动条）。
+ *   触发量测的世界事件：窗口 resize、容器尺寸变化（侧栏折叠/页签切换
+ *   会改表格顶缘或可用区）、容器滚动（捕获阶段）、autoFit 配置切换。
+ *   rAF 节流合并 + 几何签名去重，避免 RO → 改高 → RO 的回环放大。
  * ════════════════════════════════════════════════════════════ */
 
 const rootRef = ref<HTMLDivElement>()
 const pagerRef = ref<HTMLDivElement>()
 const tableRef = ref<TableInstance>()
-/** 实时量测出的可用高（关闭时保持 undefined = 不限制） */
-const autoMax = ref<number>()
+/** 实时量测出的钳制高（窗口过小 / 关闭时为 undefined = 不设限） */
+const autoHeight = ref<number>()
 
 const autoFitOn = computed(() => props.autoFit !== false)
 const autoFitConf = computed<TableAutoFitOptions>(() =>
   typeof props.autoFit === 'object' ? props.autoFit : {},
 )
 
-/** 生效的 maxHeight：显式 prop 优先，其次 autoFit 量测值 */
-const effectiveMaxHeight = computed<string | number | undefined>(() => {
-  if (props.maxHeight !== undefined) return props.maxHeight
-  return autoFitOn.value ? autoMax.value : undefined
+/** autoFit 是否让位给显式 height/maxHeight（显式配置优先） */
+function autoFitYielded(): boolean {
+  return props.height !== undefined || props.maxHeight !== undefined
+}
+
+/** 生效的 height：显式 prop 优先，其次 autoFit 的钳制高（undefined = 自然高） */
+const effectiveHeight = computed<string | number | undefined>(() => {
+  if (props.height !== undefined) return props.height
+  return autoFitOn.value && !autoFitYielded() ? autoHeight.value : undefined
 })
 
+/** 生效的 maxHeight：只剩显式透传（autoFit 走 height，不再写 max-height） */
+const effectiveMaxHeight = computed<string | number | undefined>(() => props.maxHeight)
+
 /**
- * 几何快照去重：可用高只随「表格顶缘 / 底部参考线 / 分页条高」变化，
+ * 几何快照去重：可用高只随「表格顶缘 / 底部参考线 / 分页区占用」变化，
  * 签名（2px 分桶）相同就直接返回——阻断 改高→文档变高→再触发→再改高
  * 的潜在回环，亚像素抖动也被忽略。
  */
@@ -388,27 +411,31 @@ let lastFitKey = ''
 
 function measureAutoFit(): void {
   const el = rootRef.value
-  if (!el || !autoFitOn.value || props.maxHeight !== undefined) {
-    autoMax.value = undefined
+  if (!el || !autoFitOn.value || autoFitYielded()) {
+    autoHeight.value = undefined
     lastFitKey = ''
     return
   }
   const top = el.getBoundingClientRect().top
   const limit = visibleBottomLimit(el, window.innerHeight)
-  // 分页条在 .pro-table 内部、el-table 之下，要预留出它的高度
-  const pagerH = pagerRef.value?.getBoundingClientRect().height ?? 0
+  // 表格底缘以下的全部占用：分页区（分页条含 margin + 卡片 padding/margin +
+  // 页面 padding）或无分页时「后续兄弟块 + 各级祖先留白」，逐层累加到滚动
+  // 容器底缘；漏算任何一段都会让钳制阈值虚高、页面被顶出滚动条
+  const belowH = pagerRef.value ? occupiedBelowToScroller(pagerRef.value) : belowSpaceToScroller(el)
   const bucket = (v: number) => Math.round(v / 2)
-  const key = `${bucket(top)}|${bucket(limit)}|${bucket(pagerH)}`
+  const key = `${bucket(top)}|${bucket(limit)}|${bucket(belowH)}`
   if (key === lastFitKey) return
   lastFitKey = key
   const conf = autoFitConf.value
-  autoMax.value = calcAutoMaxHeight({
+  const avail = calcAutoMaxHeight({
     top,
     limit,
-    pagerHeight: pagerH,
+    pagerHeight: belowH,
     bottomGap: conf.bottomGap,
     min: conf.min,
   })
+  // avail ≤ min 兜底值说明窗口已小到页面该整体滚动，此时钳制失去意义，放行自然高。
+  autoHeight.value = avail <= (conf.min ?? 200) ? undefined : avail
 }
 
 let resizeRaf = 0
@@ -440,9 +467,23 @@ watch(
   },
 )
 
-// 生效高度变化后让 el-table 重算列与 body 布局（内部滚动条位置才正确）
-watch(effectiveMaxHeight, () => {
-  void nextTick(() => tableRef.value?.doLayout())
+/** el-table 根元素（.pro-table 的首个子节点就是 el-table） */
+function tableEl(): HTMLElement | null {
+  return rootRef.value?.querySelector(':scope > .el-table') ?? null
+}
+
+// 生效高度变化后让 el-table 重算列与 body 布局（内部滚动条位置才正确）。
+// 顺带擦一个 Element Plus 缺陷：layout.setHeight 只在值为 number/string 时写
+// el.style.height，变回 undefined 时不清除——动态开关 autoFit 后旧的钳制高会
+// 以行内样式残留在根元素上，表格保持旧高度继续内滚（demo 页实测复现）。
+// Vue 的 style patch 不管理这类命令式写入，所以由我们 removeProperty 清理。
+watch([effectiveHeight, effectiveMaxHeight], ([h, mh]) => {
+  void nextTick(() => {
+    const t = tableEl()
+    if (h === undefined && props.height === undefined) t?.style.removeProperty('height')
+    if (mh === undefined) t?.style.removeProperty('max-height')
+    tableRef.value?.doLayout()
+  })
 })
 
 onBeforeUnmount(() => {
@@ -466,7 +507,7 @@ onBeforeUnmount(() => {
       :size="props.size"
       :show-header="props.showHeader"
       :empty-text="props.emptyText"
-      :height="props.height"
+      :height="effectiveHeight"
       :max-height="effectiveMaxHeight"
       :highlight-current-row="props.highlightCurrentRow"
       :row-class-name="props.rowClassName"
