@@ -303,6 +303,8 @@ const detailDrawerRef = ref<InstanceType<typeof ConsultDetailDrawer>>()
         />
       </el-tabs>
 
+      <!-- auto-fit：行数多时表格 body 钳到视口底内部滚动，不再把页面顶出滚动条
+           （标准与开关语义见 ProTable / TableAutoFitOptions） -->
       <ProTable
         :columns="columns"
         :data="rows"
@@ -311,6 +313,7 @@ const detailDrawerRef = ref<InstanceType<typeof ConsultDetailDrawer>>()
         row-key="id"
         :actions="actions"
         :pagination="pagination"
+        :auto-fit="true"
         empty-text="暂无咨询单 —— 用户在 H5 提交咨询后出现在这里"
         @page-change="
           (payload) => {

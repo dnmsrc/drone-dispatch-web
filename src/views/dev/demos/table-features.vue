@@ -112,6 +112,41 @@ async function batchRemove() {
   ElMessage.success('已删除（演示）')
 }
 
+/* ── autoFit 自适应高度（列表页标准，默认关、传入才开）── */
+const fitOn = ref(true)
+const fitRows = ref(30)
+
+/** 程序化造行：行数多时直观对比「关=整块撑高顶出页面滚动 / 开=body 钳到视口底内部滚」 */
+const fitData = computed(() =>
+  Array.from({ length: fitRows.value }, (_, i) => {
+    const base = mockOrders[i % mockOrders.length]
+    return { ...base, id: `FIT${String(i + 1).padStart(4, '0')}` }
+  }),
+)
+
+const fitColumns: TableColumn[] = [
+  { prop: 'id', label: '订单号', minWidth: 150 },
+  { prop: 'nickname', label: '用户', width: 100 },
+  { prop: 'venue', label: '场地', minWidth: 120 },
+  { prop: 'performDate', label: '日期', width: 110 },
+  {
+    prop: 'amount',
+    label: '金额',
+    width: 110,
+    align: 'right',
+    formatter: (_row, value) => formatMoney(value as number),
+  },
+]
+
+const fitCode = `// 标准（ProTable autoFit，默认关闭）：
+//   可用高 = 表格顶缘 → 最近滚动容器可见底缘 − bottomGap(默认24) − 分页条高
+//   内容装得下 → 自然撑到内容高，不出滚动条；装不下 → body 内部滚动，
+//   表头与分页始终留在视口内；极小窗口按 min(默认200) 兜底、允许页面滚动
+<ProTable :columns="fitColumns" :data="fitData" border stripe :auto-fit="true" />
+
+// 微调留白/下限；显式 maxHeight 优先于 autoFit
+<ProTable ... :auto-fit="{ bottomGap: 16, min: 320 }" />`
+
 const code = `const columns: TableColumn[] = [
   { prop: 'id', label: '订单号', minWidth: 160 },
   { prop: 'nickname', label: '用户', slot: 'user' },          // 具名插槽自定义
@@ -169,10 +204,35 @@ const actions: TableActions = {
         </span>
       </div>
     </DemoBlock>
+
+    <DemoBlock
+      title="autoFit 自适应高度"
+      desc="列表页标准：内容装得下自然撑高不出滚动条；装不下钳到视口底、仅 body 内部滚动（开关默认关，传入才开）"
+      :code="fitCode"
+    >
+      <div class="demo-autofit-bar">
+        <el-switch v-model="fitOn" active-text="autoFit 开" inactive-text="autoFit 关" />
+        <el-radio-group v-model="fitRows" size="small">
+          <el-radio-button :value="6">6 行（装得下）</el-radio-button>
+          <el-radio-button :value="30">30 行（装不下）</el-radio-button>
+        </el-radio-group>
+        <span class="demo-toolbar-tip">
+          关掉开关再看 30 行：整块表格一口气撑高、把页面顶出滚动条——这就是要修的行为
+        </span>
+      </div>
+      <ProTable :columns="fitColumns" :data="fitData" border stripe :auto-fit="fitOn" />
+    </DemoBlock>
   </div>
 </template>
 
 <style scoped>
+.demo-autofit-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
 .demo-toolbar {
   display: flex;
   align-items: center;
