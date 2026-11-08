@@ -108,7 +108,8 @@ a {
   margin-top: 0;
 }
 
-// 价格明细列表（原型 order 详情 .price-list：行间细线分隔，total 加粗上边框）
+// 价格明细列表（原型 styles/index.css .price-list 逐条复刻：奇数行斑马纹、
+// 每行下边细线、total 主色浅底加粗——订单详情抽屉与后续页面共用）
 .price-list {
   border: 1px solid theme.$border-color-lighter;
   border-radius: 4px;
@@ -123,15 +124,16 @@ a {
   padding: 9px 14px;
   font-size: theme.$font-size-sm;
   color: theme.$text-regular;
+  border-bottom: 1px solid theme.$border-color-lighter;
+  background: theme.$bg-card;
 
-  & + .price-row {
-    border-top: 1px solid theme.$border-color-lighter;
+  &:nth-child(odd) {
+    background: theme.$bg-hover;
   }
 }
 
 .price-row.total {
-  border-top: 1px solid theme.$border-color;
-  background: theme.$bg-hover;
+  background: theme.$color-primary-light;
   font-weight: 600;
   color: theme.$text-primary;
 }

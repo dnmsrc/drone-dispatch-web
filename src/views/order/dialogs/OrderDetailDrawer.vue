@@ -76,28 +76,24 @@ async function doAccept(): Promise<void> {
   }
 }
 
-/* ═══ 拒单：必填原因弹窗（公共 createFormDialog，替代原型手写 el-dialog）═══ */
+/* ═══ 拒单：必填原因弹窗（公共 createFormDialog，替代原型手写 el-dialog）═══
+   排版对齐原型：标签居上 + 橙色退款警示条 + danger 确认钮（原型 .el-form
+   label-position=top、el-alert warning、type=danger 逐一对应） */
 const rejectFormDialog = createFormDialog<{ reason: string }>({
   name: 'order-reject',
   width: 'min(480px, 94vw)',
-  labelWidth: '96px',
+  labelPosition: 'top',
   defaultSpan: 24,
   okText: '确认拒单并退款',
+  okType: 'danger',
+  descriptionType: 'warning',
   fields: [
     {
       prop: 'reason',
       label: '拒单原因',
       control: 'textarea',
       placeholder: '例如：该场地位于航线管制区，无法执行飞行',
-      rules: [
-        {
-          validator: (_rule, value, callback) => {
-            if (String(value ?? '').trim()) callback()
-            else callback(new Error('请填写拒单原因'))
-          },
-          trigger: 'blur',
-        },
-      ],
+      rules: [{ required: true, message: '请填写拒单原因', trigger: 'blur' }],
       props: { rows: 3, maxlength: 100, showWordLimit: true },
     },
   ],
@@ -106,7 +102,7 @@ const rejectFormDialog = createFormDialog<{ reason: string }>({
 async function doReject(): Promise<void> {
   if (!detail.value) return
   const result = await rejectFormDialog.open({
-    title: `拒单确认 ${detail.value.id}`,
+    title: '拒单确认',
     description: '拒单后系统将按 100% 自动全额退款，订单直接变为「已退款」。',
   })
   if (result.action !== DialogAction.Confirm || !rowRef) return
