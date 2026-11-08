@@ -139,12 +139,15 @@ const fitColumns: TableColumn[] = [
 ]
 
 const fitCode = `// 标准（ProTable autoFit，默认关闭）：
-//   可用高 = 表格顶缘 → 最近滚动容器可见底缘 − bottomGap(默认24) − 分页条高
-//   内容装得下 → 自然撑到内容高，不出滚动条；装不下 → body 内部滚动，
-//   表头与分页始终留在视口内；极小窗口按 min(默认200) 兜底、允许页面滚动
+//   可用高 = 表格顶缘 → 最近滚动容器可见底缘
+//            − bottomGap(默认24) − 分页区全部占用(分页条含 margin + 卡片/页面留白)
+//   表格恒固定为可用高，文档高度不随行数变化，页面永不出整体滚动条：
+//   行数不足 → 即「撑开到不出现滚动条的最大」，富余是表格底部同色空档、行不变形；
+//   行数过多 → body 内部滚动，表头与分页留在视口内；
+//   极小窗口按 min(默认200) 兜底、允许页面滚动
 <ProTable :columns="fitColumns" :data="fitData" border stripe :auto-fit="true" />
 
-// 微调留白/下限；显式 maxHeight 优先于 autoFit
+// 微调留白/下限；显式 height / maxHeight 优先于 autoFit
 <ProTable ... :auto-fit="{ bottomGap: 16, min: 320 }" />`
 
 const code = `const columns: TableColumn[] = [
@@ -207,7 +210,7 @@ const actions: TableActions = {
 
     <DemoBlock
       title="autoFit 自适应高度"
-      desc="列表页标准：内容装得下自然撑高不出滚动条；装不下钳到视口底、仅 body 内部滚动（开关默认关，传入才开）"
+      desc="列表页标准：表格恒为可用高——行数不足撑开到不留灰底空档、行数过多仅 body 内部滚动，页面永远不出整体滚动条（开关默认关，传入才开）"
       :code="fitCode"
     >
       <div class="demo-autofit-bar">
@@ -217,7 +220,7 @@ const actions: TableActions = {
           <el-radio-button :value="30">30 行（装不下）</el-radio-button>
         </el-radio-group>
         <span class="demo-toolbar-tip">
-          关掉开关再看 30 行：整块表格一口气撑高、把页面顶出滚动条——这就是要修的行为
+          关掉开关再看 30 行：表格按内容自然撑高、把页面顶出整体滚动条——这就是该开关要修掉的行为
         </span>
       </div>
       <ProTable :columns="fitColumns" :data="fitData" border stripe :auto-fit="fitOn" />
