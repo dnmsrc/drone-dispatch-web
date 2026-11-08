@@ -51,3 +51,31 @@ a {
     padding: theme.$space-md;
   }
 }
+
+// 白底卡片（原型 .card：白底、4px 圆角、16px 内边距、底部 16px 间距、浅阴影）
+// el-card 已在主题包重写为同款外观（element/components/card.scss），
+// 本类供原型风格的 div.card 结构直接使用（首页、后续列表页通用）
+.card {
+  background: theme.$bg-card;
+  border-radius: theme.$radius-base;
+  padding: theme.$space-lg;
+  margin-bottom: theme.$space-lg;
+  box-shadow: theme.$shadow-card;
+}
+
+// 卡片标题（原型 .card-title：16px/600，标题与右侧操作两端对齐；.sub 为灰色小注）
+.card-title {
+  font-size: theme.$font-size-md;
+  font-weight: 600;
+  color: theme.$text-primary;
+  margin: 0 0 theme.$space-lg;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-title .sub {
+  font-size: theme.$font-size-xs;
+  color: theme.$text-secondary;
+  font-weight: 400;
+}
