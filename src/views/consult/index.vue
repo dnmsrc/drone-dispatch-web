@@ -86,6 +86,10 @@ function onTabChange(): void {
 onMounted(() => void load())
 
 /* ═══ 表格列（配置式；多行单元格用 render 组装全局公共类）═══ */
+// 自适应策略（与原型写法的关键差异）：原型九列全部固定 width，宽屏下
+// el-table 不拉伸 → 右侧出现整列空白。这里给「文本变长就少截断」收益最大的
+// 三列（用户/场地/判定结论）改用 minWidth：窄屏以原型值为下限横向滚动（观感
+// 同原型），宽屏剩余空间按比例摊给这三列、表格始终铺满容器（演示页同款机制）。
 /** 双行单元格：主行 + 灰色副行（原型 .cell-sub 结构） */
 function twoLine(main: string, sub: string, ellipsis = false) {
   return h('div', {}, [
@@ -102,12 +106,12 @@ const columns: TableColumn[] = [
   { prop: 'id', label: '咨询单号', width: 160 },
   {
     label: '用户',
-    width: 85,
+    minWidth: 85,
     render: ({ row }) => twoLine(row.user?.nickname || '—', row.user?.phone ?? '', true),
   },
   {
     label: '场地',
-    width: 90,
+    minWidth: 90,
     render: ({ row }) => twoLine(row.venue?.name || '—', venueSub(row.venue), true),
   },
   {
@@ -126,7 +130,7 @@ const columns: TableColumn[] = [
   },
   {
     label: '判定结论',
-    width: 100,
+    minWidth: 100,
     render: ({ row }) => {
       const text = row.judgment?.conclusionText || '—'
       return h('span', { class: 'ellipsis', title: text }, text)
