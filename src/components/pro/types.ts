@@ -209,6 +209,21 @@ export interface TableActions {
   link?: boolean
 }
 
+/**
+ * 自适应高度（ProTable autoFit）——「列表页不撑出页面滚动条」的统一标准：
+ *   · 可用高 = 表格顶缘到最近滚动容器可见底缘的距离 − bottomGap − 分页条占位
+ *   · 内容高 ≤ 可用高 → 表格自然撑到内容高，不出任何滚动条（外部空间再大也只到内容高）
+ *   · 内容高 > 可用高 → 钳制在可用高，表格 body 内部滚动（表头/分页固定在外）
+ *   · 极小窗口按 min 兜底，此时允许页面滚动
+ * 显式传了 maxHeight 时以 maxHeight 优先；autoFit 默认关闭。
+ */
+export interface TableAutoFitOptions {
+  /** 与底部可见边缘的留白（px），默认 24 */
+  bottomGap?: number
+  /** 可用高度下限（px），默认 200；低于它说明页面该整体滚动了 */
+  min?: number
+}
+
 /** 分页配置：传对象即显示分页 */
 export interface TablePagination {
   /** 当前页（1 起） */

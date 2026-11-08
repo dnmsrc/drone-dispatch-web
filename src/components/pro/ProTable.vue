@@ -6,18 +6,25 @@
 //   1) 业务页面只传 columns / data 等配置，不用手写一堆 el-table-column
 //   2) 单元格渲染优先级：slot（具名插槽）> render（ProCell）> formatter > 默认 row[prop]
 //   3) 统一处理：多选/序号列、多级表头、操作列（含「更多」下拉与二次确认）、底部分页
+//   4) autoFit 自适应高度（默认关，传入才开）——列表页「不撑出页面滚动条」的标准：
+//      内容装得下就自然撑到内容高（外部空间再大也不再多占）；装不下就把 body
+//      钳制在「表格顶缘→最近滚动容器可见底缘 − bottomGap − 分页条」的内部滚动，
+//      表头与分页始终留在视口内。计算内核在 ./helpers.ts（calcAutoMaxHeight，带单测），
+//      标准定义见 ./types.ts 的 TableAutoFitOptions；显式 maxHeight 优先于 autoFit
 //
 // 类型契约见 ./types.ts（Lead 维护，本组件不修改该文件）
 // 视觉样式集中在当前主题包（@theme）的 pro/table.scss，本文件只保留必要的 scoped 样式
 // ─────────────────────────────────────────────────────────────
-import { computed, ref, watch } from 'vue'
-import { ElMessageBox } from 'element-plus'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { ElMessageBox, type TableInstance } from 'element-plus'
 import { ArrowDown } from '@element-plus/icons-vue'
 import ProCell from './ProCell'
+import { calcAutoMaxHeight, visibleBottomLimit } from './helpers'
 import type {
   CellContext,
   TableActionButton,
   TableActions,
+  TableAutoFitOptions,
   TableColumn,
   TablePagination,
   TableSortChange,
@@ -53,8 +60,13 @@ interface ProTableProps {
   emptyText?: string
   /** 表格高度（透传 el-table） */
   height?: string | number
-  /** 表格最大高度（透传 el-table） */
+  /** 表格最大高度（透传 el-table；显式传入时优先于 autoFit） */
   maxHeight?: string | number
+  /**
+   * 自适应高度开关（默认 false，传入才开）：true 用默认留白；
+   * 传 TableAutoFitOptions 可微调 bottomGap / min。行为标准见文件头注释。
+   */
+  autoFit?: boolean | TableAutoFitOptions
   /** 是否高亮当前行 */
   highlightCurrentRow?: boolean
   /** 行样式类名回调 */
@@ -76,6 +88,7 @@ const props = withDefaults(defineProps<ProTableProps>(), {
   pagination: null,
   emptyText: '暂无数据',
   highlightCurrentRow: false,
+  autoFit: false,
 })
 
 const emit = defineEmits<{
@@ -341,11 +354,110 @@ function slotScope(scope: Record<string, any>): {
 function onRowClick(row: Record<string, any>, column: unknown, event: Event): void {
   emit('row-click', row, column, event)
 }
+
+/* ════════════════════════════════════════════════════════════
+ * 五、autoFit 自适应高度（默认关；标准见文件头与 types.ts）
+ *   触发量测的三个世界事件：窗口 resize、容器尺寸变化（侧栏折叠/搜索卡
+ *   折叠展开都会改变表格顶缘或可用区）、autoFit 配置切换。
+ *   rAF 节流合并，避免 RO → 改高 → RO 的回环放大。
+ * ════════════════════════════════════════════════════════════ */
+
+const rootRef = ref<HTMLDivElement>()
+const pagerRef = ref<HTMLDivElement>()
+const tableRef = ref<TableInstance>()
+/** 实时量测出的可用高（关闭时保持 undefined = 不限制） */
+const autoMax = ref<number>()
+
+const autoFitOn = computed(() => props.autoFit !== false)
+const autoFitConf = computed<TableAutoFitOptions>(() =>
+  typeof props.autoFit === 'object' ? props.autoFit : {},
+)
+
+/** 生效的 maxHeight：显式 prop 优先，其次 autoFit 量测值 */
+const effectiveMaxHeight = computed<string | number | undefined>(() => {
+  if (props.maxHeight !== undefined) return props.maxHeight
+  return autoFitOn.value ? autoMax.value : undefined
+})
+
+/**
+ * 几何快照去重：可用高只随「表格顶缘 / 底部参考线 / 分页条高」变化，
+ * 签名（2px 分桶）相同就直接返回——阻断 改高→文档变高→再触发→再改高
+ * 的潜在回环，亚像素抖动也被忽略。
+ */
+let lastFitKey = ''
+
+function measureAutoFit(): void {
+  const el = rootRef.value
+  if (!el || !autoFitOn.value || props.maxHeight !== undefined) {
+    autoMax.value = undefined
+    lastFitKey = ''
+    return
+  }
+  const top = el.getBoundingClientRect().top
+  const limit = visibleBottomLimit(el, window.innerHeight)
+  // 分页条在 .pro-table 内部、el-table 之下，要预留出它的高度
+  const pagerH = pagerRef.value?.getBoundingClientRect().height ?? 0
+  const bucket = (v: number) => Math.round(v / 2)
+  const key = `${bucket(top)}|${bucket(limit)}|${bucket(pagerH)}`
+  if (key === lastFitKey) return
+  lastFitKey = key
+  const conf = autoFitConf.value
+  autoMax.value = calcAutoMaxHeight({
+    top,
+    limit,
+    pagerHeight: pagerH,
+    bottomGap: conf.bottomGap,
+    min: conf.min,
+  })
+}
+
+let resizeRaf = 0
+function scheduleMeasure(): void {
+  cancelAnimationFrame(resizeRaf)
+  resizeRaf = requestAnimationFrame(measureAutoFit)
+}
+
+let parentObserver: ResizeObserver | null = null
+onMounted(() => {
+  window.addEventListener('resize', scheduleMeasure, { passive: true })
+  // 捕获阶段监听：页面级与任意容器（如 .app-main）的滚动都会重估顶缘位置
+  window.addEventListener('scroll', scheduleMeasure, { passive: true, capture: true })
+  // 观察直接父级（列表页里就是 .card）：兄弟节点增高/降低会挪动表格顶缘
+  const target = rootRef.value?.parentElement
+  if (target && typeof ResizeObserver !== 'undefined') {
+    parentObserver = new ResizeObserver(scheduleMeasure)
+    parentObserver.observe(target)
+  }
+  void nextTick(measureAutoFit)
+})
+
+// 开关 / 微调参数变化：清签名后下一帧重新量测（关闭时 measure 内会清掉限制值）
+watch(
+  () => props.autoFit,
+  () => {
+    lastFitKey = ''
+    void nextTick(measureAutoFit)
+  },
+)
+
+// 生效高度变化后让 el-table 重算列与 body 布局（内部滚动条位置才正确）
+watch(effectiveMaxHeight, () => {
+  void nextTick(() => tableRef.value?.doLayout())
+})
+
+onBeforeUnmount(() => {
+  cancelAnimationFrame(resizeRaf)
+  window.removeEventListener('resize', scheduleMeasure)
+  window.removeEventListener('scroll', scheduleMeasure, { capture: true })
+  parentObserver?.disconnect()
+  parentObserver = null
+})
 </script>
 
 <template>
-  <div class="pro-table">
+  <div ref="rootRef" class="pro-table">
     <el-table
+      ref="tableRef"
       v-loading="props.loading"
       :data="props.data"
       :row-key="props.rowKey"
@@ -355,7 +467,7 @@ function onRowClick(row: Record<string, any>, column: unknown, event: Event): vo
       :show-header="props.showHeader"
       :empty-text="props.emptyText"
       :height="props.height"
-      :max-height="props.maxHeight"
+      :max-height="effectiveMaxHeight"
       :highlight-current-row="props.highlightCurrentRow"
       :row-class-name="props.rowClassName"
       :default-sort="props.defaultSort"
@@ -467,7 +579,7 @@ function onRowClick(row: Record<string, any>, column: unknown, event: Event): vo
     </el-table>
 
     <!-- ⑤ 分页：渲染在表格下方，样式见 table.scss -->
-    <div v-if="props.pagination" class="pro-table__pager">
+    <div v-if="props.pagination" ref="pagerRef" class="pro-table__pager">
       <el-pagination
         :current-page="currentPage"
         :page-size="pageSize"

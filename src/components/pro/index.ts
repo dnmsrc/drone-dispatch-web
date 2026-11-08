@@ -56,6 +56,7 @@ export type {
   TableColumn,
   TableActionButton,
   TableActions,
+  TableAutoFitOptions,
   TablePagination,
   TableSortChange,
   ProSearchProps,
