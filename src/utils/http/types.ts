@@ -4,9 +4,8 @@
 // 与后端 drone-dispatch-server 的统一信封 Result{ code, message, data } 对齐，
 // 前端所有接口成功后拿到的都是剥掉信封后的 data（见 ./index.ts 响应拦截）。
 //
-// 鉴权采用 HttpOnly Cookie：登录态 token 由后端通过 Set-Cookie 下发，
-// 标记 HttpOnly 后前端 JS 无法读取/复制，浏览器在同源请求中自动携带，
-// 因此本层不保存、不手动拼接任何 token，也没有 Authorization 注入逻辑。
+// 鉴权：token 经 AES-256-GCM 加密后存于 Cookie（本地只有密文），请求拦截器
+// 解密后注入 Authorization 头，详见 ./token 与 ../crypto。
 // ─────────────────────────────────────────────────────────────
 import type { AxiosRequestConfig } from 'axios'
 
@@ -44,6 +43,10 @@ export interface RequestOptions {
   silent?: boolean
   /** 自定义成功码：默认只认 200；特殊接口可传数组放宽判定 */
   successCode?: number | number[]
+  /** 鉴权头字段名，默认 Authorization */
+  tokenHeader?: string
+  /** 是否携带 token，默认 true；登录等公开接口设 false 即不带鉴权头 */
+  withToken?: boolean
 }
 
 // 模块增强：让 axios 的 config 类型认识上面的业务字段
@@ -51,6 +54,8 @@ declare module 'axios' {
   export interface AxiosRequestConfig {
     silent?: boolean
     successCode?: number | number[]
+    tokenHeader?: string
+    withToken?: boolean
   }
 }
 

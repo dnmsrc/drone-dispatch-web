@@ -1,16 +1,17 @@
 // ─────────────────────────────────────────────────────────────
-// 统一 HTTP 请求层（基于 axios，HttpOnly Cookie 鉴权）
+// 统一 HTTP 请求层（基于 axios，加密 Cookie 鉴权）
 //
 // 能力：
 //   1) 实例统一 baseURL / 超时，配置来源 src/config/env（VITE_API_BASE_URL / VITE_API_TIMEOUT）
-//   2) withCredentials: true —— 浏览器自动携带后端下发的 HttpOnly 鉴权 Cookie；
-//      该 Cookie 对 JS 不可见、不可复制，从根上杜绝「复制 token 绕过登录」，
-//      前端因此不保存 token、也不手动注入 Authorization
+//   2) 鉴权：token 经 AES-256-GCM 加密后存于 Cookie（本地只有密文，见 ./token 与 ../crypto），
+//      请求拦截器解密后注入 Authorization: Bearer；withCredentials 同时保留，兼容后端 Cookie 方案
 //   3) 响应拦截：自动剥离后端 Result{ code, message, data } 信封，成功直接拿到 data
 //   4) 统一异常：业务码失败 / HTTP 错误 / 超时 / 断网 / 取消，全部归一为 HttpError，
 //      除主动取消与 silent 外，默认用 Element Plus 的 ElMessage 在顶部弹错误提示
-//   5) 401 统一回调可注册的未授权处理器（供后续 auth store / 路由跳转接入）；
-//      登录态清理由后端登出接口让 Cookie 过期，前端无法也无需手动删除 HttpOnly Cookie
+//   5) 401 统一清除本地加密 token，并回调可注册的未授权处理器（供后续 auth store / 路由接入）
+//
+// 安全边界：纯前端加密防的是「复制密文到别处使用」，不抵御能调试本站 JS 的专业攻击者；
+// 后端将来下发 HttpOnly Cookie 时，可平滑切换为浏览器自动携带（本层已开 withCredentials）。
 //
 // 常规调用只需要「接口地址 + 参数」两个入参；需要自定义 header / 超时 / 静默等时，
 // 把 axios 原生配置与业务开关作为第三个参数传入。
@@ -26,6 +27,7 @@
 import axios, { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
 import { ElMessage } from 'element-plus'
 import { env } from '@/config/env'
+import { clearToken, getToken } from './token'
 import { HttpError } from './error'
 import {
   SUCCESS_CODE,
@@ -39,7 +41,7 @@ import {
 const instance = axios.create({
   baseURL: env.apiBaseUrl,
   timeout: env.apiTimeout,
-  // 跨域 XHR 也携带 Cookie；开发期走 vite proxy 同源、生产 Nginx 反代同源，均会自动带上
+  // 保留凭证携带：将来后端下发 HttpOnly Cookie 时浏览器自动带上，无需再改本层
   withCredentials: true,
 })
 
@@ -96,8 +98,8 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
 let unauthorizedPending = false
 
 function handleUnauthorized(config: InternalAxiosRequestConfig, message?: string): void {
-  // HttpOnly Cookie 前端无法删除：登录态失效以浏览器内 Cookie 自然过期或登出接口为准，
-  // 这里只负责「跳登录 / 提示」，不再做前端清 token。
+  // 清除本地加密 token（密文 Cookie）；登录态以后端会话为准
+  clearToken()
   if (unauthorizedPending) return
   unauthorizedPending = true
   window.setTimeout(() => {
@@ -112,6 +114,21 @@ function handleUnauthorized(config: InternalAxiosRequestConfig, message?: string
     notifyError(message || '登录已过期，请重新登录')
   }
 }
+
+/* ───────────────────────── 请求拦截 ───────────────────────── */
+
+// 异步拦截：从加密 Cookie 解密出 token 后注入鉴权头。
+// withToken !== false 时携带；登录等公开接口可在第三参传 { withToken: false }。
+instance.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
+  if (config.withToken !== false) {
+    const token = await getToken()
+    if (token) {
+      const headerName = config.tokenHeader ?? 'Authorization'
+      config.headers.set(headerName, `Bearer ${token}`)
+    }
+  }
+  return config
+})
 
 /* ───────────────────────── 响应拦截 ───────────────────────── */
 
@@ -246,4 +263,5 @@ const http = {
 
 export default http
 export { HttpError } from './error'
+export { getToken, setToken, clearToken } from './token'
 export type { ApiResult, HttpErrorKind, HttpRequestConfig, RequestOptions } from './types'
