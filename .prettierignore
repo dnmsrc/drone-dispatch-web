@@ -1,0 +1,11 @@
+# 产物与依赖
+dist
+dev-dist
+coverage
+node_modules
+
+# 锁文件不做格式化
+package-lock.json
+
+# 存量 Markdown 暂不纳入，避免一次性大面积重排
+*.md
