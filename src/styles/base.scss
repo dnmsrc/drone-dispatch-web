@@ -79,3 +79,31 @@ a {
   color: theme.$text-secondary;
   font-weight: 400;
 }
+
+// 单元格单行省略（原型 .ellipsis：完整内容靠 title 悬浮提示）
+.ellipsis {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+// 时间等不允许折行的短文本
+.nowrap {
+  white-space: nowrap;
+}
+
+// 抽屉/弹窗分组标题（原型 .section-title：左侧主色竖条 + 14px/600）
+.section-title {
+  font-size: theme.$font-size-base;
+  font-weight: 600;
+  color: theme.$text-primary;
+  margin: theme.$space-xl 0 theme.$space-md;
+  padding-left: theme.$space-sm;
+  border-left: 3px solid theme.$color-primary;
+  line-height: 1.2;
+}
+
+.section-title:first-child {
+  margin-top: 0;
+}
