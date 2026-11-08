@@ -19,7 +19,6 @@ export interface OrderPickerParams {
 }
 
 /** 订单选择弹窗：选中一行返回该行数据，取消 / 关闭返回 null */
-export const orderPickerDialog = wrapDialog<OrderPickerParams, MockOrder>(
-  OrderPickerDialog,
-  { name: 'order-picker' },
-)
+export const orderPickerDialog = wrapDialog<OrderPickerParams, MockOrder>(OrderPickerDialog, {
+  name: 'order-picker',
+})

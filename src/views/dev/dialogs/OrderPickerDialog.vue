@@ -41,12 +41,7 @@ function pick(row: unknown) {
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
-    class="pro-dialog"
-    :title="props.title"
-    width="840px"
-  >
+  <el-dialog v-model="visible" class="pro-dialog" :title="props.title" width="840px">
     <p v-if="props.description" class="pro-dialog-desc">{{ props.description }}</p>
 
     <el-input

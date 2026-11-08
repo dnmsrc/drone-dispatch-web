@@ -92,7 +92,7 @@ const emit = defineEmits<{
   /** 每页条数变化（配合 v-model:size） */
   'update:size': [size: number]
   /** 操作列按钮点击（不论是否执行 onClick 都会触发） */
-  'action': [payload: { button: TableActionButton; row: Record<string, any>; index: number }]
+  action: [payload: { button: TableActionButton; row: Record<string, any>; index: number }]
 }>()
 
 /* ════════════════════════════════════════════════════════════
@@ -169,7 +169,10 @@ function columnProps(col: TableColumn): Record<string, unknown> {
 }
 
 /** 组装 CellContext：value 取 row[prop]，index 取 el-table 的 $index */
-function cellContext(col: TableColumn, scope: { row: Record<string, any>; $index: number }): CellContext {
+function cellContext(
+  col: TableColumn,
+  scope: { row: Record<string, any>; $index: number },
+): CellContext {
   return {
     row: scope.row,
     column: col,
@@ -239,11 +242,16 @@ function buttonType(btn: TableActionButton): TableActionButton['type'] {
  *   2) 有 confirm 则先弹确认框（warning，「确定 / 取消」），取消则中止
  *   3) 最后执行 onClick
  */
-async function handleAction(button: TableActionButton, row: Record<string, any>, rowIndex: number): Promise<void> {
+async function handleAction(
+  button: TableActionButton,
+  row: Record<string, any>,
+  rowIndex: number,
+): Promise<void> {
   emit('action', { button, row, index: rowIndex })
 
   if (button.confirm) {
-    const message = typeof button.confirm === 'function' ? button.confirm(row, rowIndex) : button.confirm
+    const message =
+      typeof button.confirm === 'function' ? button.confirm(row, rowIndex) : button.confirm
     try {
       await ElMessageBox.confirm(message, '提示', {
         type: 'warning',
@@ -307,7 +315,10 @@ function onSelectionChange(rows: Record<string, any>[]): void {
   emit('selection-change', rows)
 }
 
-function onSortChange(payload: { prop: string | null; order: 'ascending' | 'descending' | null }): void {
+function onSortChange(payload: {
+  prop: string | null
+  order: 'ascending' | 'descending' | null
+}): void {
   emit('sort-change', { prop: payload.prop ?? '', order: payload.order })
 }
 

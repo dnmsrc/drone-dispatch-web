@@ -102,13 +102,9 @@ class AesGcmCryptoProvider implements CryptoProvider {
     const keyMaterialBytes = cryptoBytes(
       new TextEncoder().encode(`${APP_KEY_MATERIAL}:${window.location.origin}`),
     )
-    const baseKey = await crypto.subtle.importKey(
-      'raw',
-      keyMaterialBytes,
-      'PBKDF2',
-      false,
-      ['deriveKey'],
-    )
+    const baseKey = await crypto.subtle.importKey('raw', keyMaterialBytes, 'PBKDF2', false, [
+      'deriveKey',
+    ])
     const key = await crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',

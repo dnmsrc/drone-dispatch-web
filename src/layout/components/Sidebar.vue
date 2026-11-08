@@ -21,10 +21,7 @@ function goHome() {
 </script>
 
 <template>
-  <aside
-    class="app-sidebar"
-    :style="{ width: isMobile ? '210px' : collapsed ? '64px' : '210px' }"
-  >
+  <aside class="app-sidebar" :style="{ width: isMobile ? '210px' : collapsed ? '64px' : '210px' }">
     <div class="app-sidebar-logo" @click="goHome">
       <span class="app-sidebar-logo-icon">
         <svg viewBox="0 0 48 48" width="30" height="30" fill="none">
@@ -41,7 +38,9 @@ function goHome() {
           />
         </svg>
       </span>
-      <span v-show="!collapsed || isMobile" class="app-sidebar-logo-text">{{ brand.adminTitle }}</span>
+      <span v-show="!collapsed || isMobile" class="app-sidebar-logo-text">{{
+        brand.adminTitle
+      }}</span>
     </div>
 
     <el-scrollbar class="app-sidebar-menu">

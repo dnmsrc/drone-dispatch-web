@@ -341,7 +341,9 @@ const treeData = computed(() => options.value as unknown as never[])
     />
 
     <el-date-picker
-      v-else-if="['date', 'datetime', 'daterange', 'datetimerange', 'month', 'year'].includes(control)"
+      v-else-if="
+        ['date', 'datetime', 'daterange', 'datetimerange', 'month', 'year'].includes(control)
+      "
       v-bind="extraProps"
       :type="dateType"
       :model-value="anyValue"

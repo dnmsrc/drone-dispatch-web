@@ -83,11 +83,7 @@ const handles = new WeakMap<object, DialogHandle<unknown, unknown>>()
  * @param component 业务弹窗组件（自己写 el-dialog，自己管 visible、自己写按钮）
  * @param options 包裹器配置：名字 + 可选的默认动作覆盖 + 固定透传 props
  */
-function createHandle<
-  P,
-  R,
-  A extends string = never,
->(
+function createHandle<P, R, A extends string = never>(
   component: Component,
   options: WrapDialogOptions<P, R, A>,
 ): DialogHandle<P, R, A> {
@@ -126,10 +122,7 @@ function createHandle<
   }
 
   /** 打开弹窗，返回"组件自己关掉之后"的「动作 + 数据」 */
-  function open(
-    params?: P,
-    callbacks?: DialogCallbackArg<R, A>,
-  ): Promise<DialogResult<R, A>> {
+  function open(params?: P, callbacks?: DialogCallbackArg<R, A>): Promise<DialogResult<R, A>> {
     // 非浏览器环境直接返回，避免 SSR / 单测无 document 时报错
     if (typeof document === 'undefined') return Promise.resolve(dismissed(DialogAction.Destroy))
 
@@ -206,9 +199,7 @@ function createHandle<
           } else if (action === DialogAction.Timeout) {
             runCallback('onTimeout', () => cb.onTimeout?.())
           } else if (isBuiltin(action)) {
-            runCallback('onDismissed', () =>
-              cb.onDismissed?.(result as DialogResultDismissed),
-            )
+            runCallback('onDismissed', () => cb.onDismissed?.(result as DialogResultDismissed))
           }
           // 业务自定义动作只有 onResult 会收到（按 action 分支处理，不套内置回调）
 
@@ -267,11 +258,7 @@ function createHandle<
  * @typeParam A 业务自定义关闭动作（一般直接传业务枚举类型，如 `OrderDialogAction`）
  * @returns 业务侧的弹窗对象：只有 name 和 open()
  */
-export function wrapDialog<
-  P = Record<string, unknown>,
-  R = unknown,
-  A extends string = never,
->(
+export function wrapDialog<P = Record<string, unknown>, R = unknown, A extends string = never>(
   component: Component,
   options: WrapDialogOptions<P, R, A>,
 ): DialogController<P, R, A> {
@@ -281,8 +268,7 @@ export function wrapDialog<
   // 不交给调用方 —— 弹窗的生命周期由弹窗自己控制。
   const controller: DialogController<P, R, A> = Object.freeze({
     name: handle.name,
-    open: (params?: P, callbacks?: DialogCallbackArg<R, A>) =>
-      handle.open(params, callbacks),
+    open: (params?: P, callbacks?: DialogCallbackArg<R, A>) => handle.open(params, callbacks),
   })
 
   handles.set(controller, handle as unknown as DialogHandle<unknown, unknown>)
@@ -297,11 +283,7 @@ export function wrapDialog<
  *
  * @param controller wrapDialog / createFormDialog / confirmDialog 返回的对象
  */
-export function getDialogHandle<
-  P = Record<string, unknown>,
-  R = unknown,
-  A extends string = never,
->(
+export function getDialogHandle<P = Record<string, unknown>, R = unknown, A extends string = never>(
   controller: DialogController<P, R, A>,
 ): DialogHandle<P, R, A> {
   const handle = handles.get(controller as object)

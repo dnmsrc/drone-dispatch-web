@@ -159,11 +159,7 @@ export function isDialogDismissed<TData, TAction extends string = never>(
  *
  * 这一层只提供「方法」，按钮怎么写、放几个，完全是组件自己的事。
  */
-export interface DialogRuntime<
-  P = Record<string, unknown>,
-  R = unknown,
-  A extends string = never,
-> {
+export interface DialogRuntime<P = Record<string, unknown>, R = unknown, A extends string = never> {
   /** 弹窗是否可见：组件里 `v-model="visible"` 绑给 el-dialog */
   visible: Ref<boolean>
   /** 本次 open 传入的参数 */
@@ -186,11 +182,7 @@ export interface DialogRuntime<
  *
  *   defineExpose({ open, close })   // 两个都可选，只写一个也行
  */
-export interface DialogExposed<
-  P = Record<string, unknown>,
-  R = unknown,
-  A extends string = never,
-> {
+export interface DialogExposed<P = Record<string, unknown>, R = unknown, A extends string = never> {
   /** 覆盖默认「打开」：默认动作只是把 visible 置 true */
   open?: (params: P, runtime: DialogRuntime<P, R, A>) => void | Promise<void>
   /** 覆盖默认「关闭」：默认动作是 visible 置 false 并 settle 结果 */
@@ -229,8 +221,7 @@ export interface DialogCallbacks<TData = unknown, TAction extends string = never
  * 两种写法都是 await 的补充（早期业务不习惯 await 时用），语义完全一致。
  */
 export type DialogCallbackArg<TData = unknown, TAction extends string = never> =
-  | DialogCallbacks<TData, TAction>
-  | ((result: DialogResult<TData, TAction>) => void)
+  DialogCallbacks<TData, TAction> | ((result: DialogResult<TData, TAction>) => void)
 
 // ─────────────────────────────────────────────────────────────
 // 四、包裹器对外 API
@@ -279,10 +270,7 @@ export interface DialogController<
    * @param callbacks 回调风格（可选），与 await 等价
    * @returns 一定 resolve（不会 reject）：action 是 DialogAction 枚举的成员
    */
-  open: (
-    params?: P,
-    callbacks?: DialogCallbackArg<R, A>,
-  ) => Promise<DialogResult<R, A>>
+  open: (params?: P, callbacks?: DialogCallbackArg<R, A>) => Promise<DialogResult<R, A>>
 }
 
 /**

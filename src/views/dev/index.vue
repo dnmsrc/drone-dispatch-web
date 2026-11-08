@@ -53,7 +53,9 @@ function backToAdmin() {
         <div class="dev-navbar-left">
           <el-tag type="warning" effect="dark" size="small">仅开发环境</el-tag>
           <span class="dev-navbar-title">公共组件测试场</span>
-          <span class="dev-navbar-desc">内部演示与验收页面，不进入业务菜单；生产环境不注册路由</span>
+          <span class="dev-navbar-desc"
+            >内部演示与验收页面，不进入业务菜单；生产环境不注册路由</span
+          >
         </div>
         <div class="dev-navbar-right">
           <el-button link type="primary" :icon="Back" @click="backToAdmin">

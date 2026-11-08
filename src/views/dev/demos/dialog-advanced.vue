@@ -96,16 +96,11 @@ const result = await confirmDialog.open({
 })
 if (result.action === DialogAction.Confirm) archive()
 `
-
 </script>
 
 <template>
   <div class="demo-page">
-    <DemoBlock
-      title="进阶用法"
-      desc="嵌套弹窗 / 全屏 / 可拖拽 / 确定前校验失败不关闭"
-      :code="code"
-    >
+    <DemoBlock title="进阶用法" desc="嵌套弹窗 / 全屏 / 可拖拽 / 确定前校验失败不关闭" :code="code">
       <div class="demo-actions">
         <el-button type="primary" @click="openNested">嵌套弹窗</el-button>
         <el-button @click="openFullscreen">全屏弹窗</el-button>

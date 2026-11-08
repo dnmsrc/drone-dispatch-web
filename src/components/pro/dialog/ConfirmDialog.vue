@@ -47,9 +47,7 @@ const TYPE_ICONS: Record<string, Component> = {
 
 const type = computed(() => props.type ?? 'warning')
 const icon = computed(() => props.icon ?? TYPE_ICONS[type.value])
-const okType = computed(
-  () => props.okType ?? (type.value === 'danger' ? 'danger' : 'primary'),
-)
+const okType = computed(() => props.okType ?? (type.value === 'danger' ? 'danger' : 'primary'))
 
 const okLoading = ref(false)
 
@@ -76,12 +74,7 @@ async function handleOk() {
 
 <template>
   <!-- 标准 el-dialog：保留关闭 X（走 DialogAction.Close），顶部定位不垂直居中 -->
-  <el-dialog
-    v-model="visible"
-    class="pro-dialog"
-    :title="props.title"
-    width="420px"
-  >
+  <el-dialog v-model="visible" class="pro-dialog" :title="props.title" width="420px">
     <!-- 确认体：对齐 ElMessageBox.confirm 的「状态图标 + 文案」原生结构 -->
     <div class="pro-confirm">
       <span class="pro-confirm-icon" :class="`is-${type}`">

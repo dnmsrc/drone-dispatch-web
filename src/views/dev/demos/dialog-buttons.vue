@@ -91,7 +91,9 @@ async function layerComponentDefault() {
 
 async function layerWrapProps() {
   // messageDialog 在 wrapDialog options.props 里配了 title 默认值，优先级高于组件默认
-  const result = await messageDialog.open({ content: '没传 title，吃到 options.props 的默认标题。' })
+  const result = await messageDialog.open({
+    content: '没传 title，吃到 options.props 的默认标题。',
+  })
   record('第二层：wrapDialog options.props', result)
 }
 
@@ -159,7 +161,10 @@ d.open({ title: '最高优先' })   // open 入参覆盖一切
       </div>
       <div class="layer-note">
         <ElTag size="small">优先级</ElTag>
-        <span>组件 <code>defineExpose</code> 方法 ＞ <code>wrapDialog</code> 的 <code>options.open/close</code> ＞ 包裹器默认动作</span>
+        <span
+          >组件 <code>defineExpose</code> 方法 ＞ <code>wrapDialog</code> 的
+          <code>options.open/close</code> ＞ 包裹器默认动作</span
+        >
       </div>
     </DemoBlock>
 
@@ -174,7 +179,10 @@ d.open({ title: '最高优先' })   // open 入参覆盖一切
       </div>
       <div class="layer-note">
         <ElTag size="small">优先级</ElTag>
-        <span>组件 <code>withDefaults</code> 最低 → 包裹器 <code>options.props</code> 居中 → <code>open()</code> 入参最高</span>
+        <span
+          >组件 <code>withDefaults</code> 最低 → 包裹器 <code>options.props</code> 居中 →
+          <code>open()</code> 入参最高</span
+        >
       </div>
     </DemoBlock>
 

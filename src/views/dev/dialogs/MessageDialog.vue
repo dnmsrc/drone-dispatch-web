@@ -24,12 +24,7 @@ const { visible, confirm, cancel } = useDialog<MessageDialogParams, boolean>()
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
-    class="pro-dialog"
-    :title="props.title"
-    width="480px"
-  >
+  <el-dialog v-model="visible" class="pro-dialog" :title="props.title" width="480px">
     <p v-if="props.description" class="pro-dialog-desc">{{ props.description }}</p>
     <div class="pro-dialog-text">{{ props.content }}</div>
 

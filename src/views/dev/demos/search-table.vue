@@ -2,8 +2,20 @@
 // 搜索 + 表格 · 完整列表页范式（ProSearch + ProTable 联动，模拟后端分页）
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { ProSearch, ProTable, type FormFieldConfig, type TableActions, type TableColumn } from '@/components/pro'
-import { formatMoney, mockOrders, ORDER_STATUS_MAP, ORDER_STATUS_OPTIONS, VENUE_OPTIONS } from '../mock'
+import {
+  ProSearch,
+  ProTable,
+  type FormFieldConfig,
+  type TableActions,
+  type TableColumn,
+} from '@/components/pro'
+import {
+  formatMoney,
+  mockOrders,
+  ORDER_STATUS_MAP,
+  ORDER_STATUS_OPTIONS,
+  VENUE_OPTIONS,
+} from '../mock'
 import DemoBlock from '../components/DemoBlock.vue'
 
 /** 查询条件（ProSearch 直接改这个对象） */
@@ -85,12 +97,20 @@ const columns: TableColumn[] = [
 
 const actions: TableActions = {
   buttons: [
-    { text: '详情', type: 'primary', onClick: (row) => { ElMessage.info(`查看订单 ${row.id}`) } },
+    {
+      text: '详情',
+      type: 'primary',
+      onClick: (row) => {
+        ElMessage.info(`查看订单 ${row.id}`)
+      },
+    },
     {
       text: '接单',
       type: 'success',
       show: (row) => row.status === 'pending',
-      onClick: (row) => { ElMessage.success(`已接单 ${row.id}（演示）`) },
+      onClick: (row) => {
+        ElMessage.success(`已接单 ${row.id}（演示）`)
+      },
     },
   ],
 }
@@ -136,7 +156,13 @@ const code = `const query = reactive({ keyword: '', status: '', venue: '', dateR
             border
             :actions="actions"
             :pagination="pagination"
-            @page-change="(payload) => { page = payload.page; size = payload.size; load() }"
+            @page-change="
+              (payload) => {
+                page = payload.page
+                size = payload.size
+                load()
+              }
+            "
           />
         </el-card>
       </div>

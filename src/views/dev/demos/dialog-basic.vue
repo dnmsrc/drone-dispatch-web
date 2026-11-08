@@ -75,8 +75,7 @@ function callbackStyle() {
         record('回调风格', { action: DialogAction.Confirm, data: true })
       },
       onCancel: () => record('回调风格', { action: DialogAction.Cancel, data: null }),
-      onClose: () =>
-        record('回调风格', { action: DialogAction.Close, data: null }),
+      onClose: () => record('回调风格', { action: DialogAction.Close, data: null }),
     },
   )
 }
@@ -117,7 +116,6 @@ messageDialog.open(
 const result = await confirmDialog.open({ content: '确认删除？', type: 'danger' })
 if (result.action === DialogAction.Confirm) remove()
 `
-
 </script>
 
 <template>

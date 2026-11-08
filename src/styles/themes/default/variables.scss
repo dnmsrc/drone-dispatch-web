@@ -40,8 +40,9 @@ $bg-card: #ffffff;
 $bg-hover: #f5f7fa;
 
 // ── 字体 ────────────────────────────────────────
-$font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica,
-  'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
+$font-family:
+  -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',
+  'Microsoft YaHei', Arial, sans-serif;
 $font-size-xl: 20px;
 $font-size-lg: 18px;
 $font-size-md: 16px;
@@ -72,7 +73,9 @@ $space-xl: 24px;
 // ── 阴影 ────────────────────────────────────────
 $shadow-card: 0 1px 4px rgba(0, 21, 41, 0.08);
 $shadow-dropdown: 0 2px 12px rgba(0, 0, 0, 0.1);
-$shadow-dialog: 0 12px 32px 4px rgba(0, 0, 0, 0.04), 0 8px 20px rgba(0, 0, 0, 0.08);
+$shadow-dialog:
+  0 12px 32px 4px rgba(0, 0, 0, 0.04),
+  0 8px 20px rgba(0, 0, 0, 0.08);
 
 // ── 滚动条 ──────────────────────────────────────
 $scrollbar-width: 8px;

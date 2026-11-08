@@ -9,7 +9,6 @@ import type { TripleConfirmParams } from './triple.constants'
 export type { TripleConfirmParams } from './triple.constants'
 
 /** 三按钮确认框：确认回传 true，取消 / 稍后处理回传对应内置动作 */
-export const tripleConfirmDialog = wrapDialog<TripleConfirmParams, boolean>(
-  TripleConfirmDialog,
-  { name: 'triple-confirm' },
-)
+export const tripleConfirmDialog = wrapDialog<TripleConfirmParams, boolean>(TripleConfirmDialog, {
+  name: 'triple-confirm',
+})

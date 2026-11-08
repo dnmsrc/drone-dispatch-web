@@ -55,10 +55,18 @@
     flex: none;
     font-size: 24px;
 
-    &.is-warning { color: var(--app-color-warning); }
-    &.is-danger { color: var(--app-color-danger); }
-    &.is-success { color: var(--app-color-success); }
-    &.is-info { color: var(--app-color-info); }
+    &.is-warning {
+      color: var(--app-color-warning);
+    }
+    &.is-danger {
+      color: var(--app-color-danger);
+    }
+    &.is-success {
+      color: var(--app-color-success);
+    }
+    &.is-info {
+      color: var(--app-color-info);
+    }
   }
 
   // 原生 .el-message-box__message：margin:0; min-width:0; 正文 14px

@@ -29,12 +29,7 @@ import { ElMessage } from 'element-plus'
 import { env } from '@/config/env'
 import { clearToken, getToken } from './token'
 import { HttpError } from './error'
-import {
-  SUCCESS_CODE,
-  UNAUTHORIZED_CODE,
-  type ApiResult,
-  type HttpRequestConfig,
-} from './types'
+import { SUCCESS_CODE, UNAUTHORIZED_CODE, type ApiResult, type HttpRequestConfig } from './types'
 
 /* ───────────────────────── 实例 ───────────────────────── */
 
@@ -54,12 +49,7 @@ function notifyError(message: string): void {
 
 /** 判断一个值是否为后端统一信封结构 */
 function isApiResult(value: unknown): value is ApiResult {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'code' in value &&
-    'message' in value
-  )
+  return typeof value === 'object' && value !== null && 'code' in value && 'message' in value
 }
 
 /** 按配置的成功码判定业务是否成功（默认 200，可被 config.successCode 覆盖） */

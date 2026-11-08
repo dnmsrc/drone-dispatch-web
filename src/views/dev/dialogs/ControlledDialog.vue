@@ -78,12 +78,7 @@ onBeforeUnmount(stopCountdown)
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
-    class="pro-dialog"
-    :title="props.title"
-    width="560px"
-  >
+  <el-dialog v-model="visible" class="pro-dialog" :title="props.title" width="560px">
     <p v-if="props.description" class="pro-dialog-desc">{{ props.description }}</p>
     <div class="pro-dialog-text">{{ props.content }}</div>
 
@@ -97,9 +92,7 @@ onBeforeUnmount(stopCountdown)
       <el-button @click="close(ControlledAction.RemindLater, CONTROLLED_LATER_VALUE)">
         稍后提醒
       </el-button>
-      <el-button type="primary" @click="confirm(CONTROLLED_OK_VALUE)">
-        确定并回传字符串
-      </el-button>
+      <el-button type="primary" @click="confirm(CONTROLLED_OK_VALUE)"> 确定并回传字符串 </el-button>
     </template>
   </el-dialog>
 </template>

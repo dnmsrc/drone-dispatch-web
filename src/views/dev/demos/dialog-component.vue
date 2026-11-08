@@ -36,15 +36,12 @@ async function pickOrder() {
 
 /** 回调风格：第二个参数直接传一个函数，关闭时调用一次（参数是完整结果） */
 function pickOrderWithCallback() {
-  orderPickerDialog.open(
-    { keyword: '滨江' },
-    (result) => {
-      lastResult.value =
-        result.action === DialogAction.Confirm
-          ? `回调收到（action: confirm）：${JSON.stringify(result.data)}`
-          : `回调收到（action: ${result.action}）→ 没有选择数据`
-    },
-  )
+  orderPickerDialog.open({ keyword: '滨江' }, (result) => {
+    lastResult.value =
+      result.action === DialogAction.Confirm
+        ? `回调收到（action: confirm）：${JSON.stringify(result.data)}`
+        : `回调收到（action: ${result.action}）→ 没有选择数据`
+  })
 }
 
 const code = `// ① 业务组件：OrderPickerDialog.vue —— 入参 defineProps，useDialog 只拿运行时能力
@@ -71,7 +68,6 @@ orderPickerDialog.open({ keyword: '滨江' }, (result) => {
   if (result.action === DialogAction.Confirm) console.log(result.data.id)
 })
 `
-
 </script>
 
 <template>

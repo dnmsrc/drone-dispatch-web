@@ -56,11 +56,17 @@ const code = `const columns: TableColumn[] = [
 
 <template>
   <div class="demo-page">
-    <DemoBlock title="基础表格" desc="实体列 + 金额格式化 + 状态标签渲染（render 返回 VNode）" :code="code">
+    <DemoBlock
+      title="基础表格"
+      desc="实体列 + 金额格式化 + 状态标签渲染（render 返回 VNode）"
+      :code="code"
+    >
       <ProTable :columns="columns" :data="mockOrders" stripe />
 
       <div class="demo-toolbar">
-        <el-button size="small" @click="toggleLoading">模拟加载 {{ loading ? '（加载中…）' : '' }}</el-button>
+        <el-button size="small" @click="toggleLoading"
+          >模拟加载 {{ loading ? '（加载中…）' : '' }}</el-button
+        >
         <span class="demo-toolbar-tip">stripe 斑马纹；sortable 点击表头排序（本地排序）</span>
       </div>
     </DemoBlock>

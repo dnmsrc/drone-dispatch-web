@@ -65,10 +65,7 @@ export interface OptionItem {
 }
 
 /** 选项来源：静态数组、同步函数、异步函数（字典类接口用异步） */
-export type OptionSource =
-  | OptionItem[]
-  | (() => OptionItem[])
-  | (() => Promise<OptionItem[]>)
+export type OptionSource = OptionItem[] | (() => OptionItem[]) | (() => Promise<OptionItem[]>)
 
 /** 配置式表单里的单个字段 */
 export interface FormFieldConfig {

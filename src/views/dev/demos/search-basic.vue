@@ -28,11 +28,17 @@ const manyFields: FormFieldConfig[] = [
   ...fields,
   { prop: 'phone', label: '手机号', control: 'input', width: 180 },
   { prop: 'dateRange', label: '日期', control: 'daterange', width: 260 },
-  { prop: 'timeSlot', label: '时段', control: 'select', width: 160, options: [
-    { label: '18:00', value: '18:00' },
-    { label: '19:00', value: '19:00' },
-    { label: '20:00', value: '20:00' },
-  ] },
+  {
+    prop: 'timeSlot',
+    label: '时段',
+    control: 'select',
+    width: 160,
+    options: [
+      { label: '18:00', value: '18:00' },
+      { label: '19:00', value: '19:00' },
+      { label: '20:00', value: '20:00' },
+    ],
+  },
 ]
 
 const logs = ref<string[]>([])
@@ -59,7 +65,12 @@ const code = `const fields: FormFieldConfig[] = [
 <template>
   <div class="demo-page">
     <DemoBlock title="基础搜索" desc="固定提供查询/重置；回车即查询；事件回传条件快照" :code="code">
-      <ProSearch :model="query" :fields="fields" @search="(q) => pushLog('search', q)" @reset="(q) => pushLog('reset', q)" />
+      <ProSearch
+        :model="query"
+        :fields="fields"
+        @search="(q) => pushLog('search', q)"
+        @reset="(q) => pushLog('reset', q)"
+      />
 
       <div class="demo-log">
         <div class="demo-log-title">事件日志（最近 6 条）</div>

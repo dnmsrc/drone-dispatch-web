@@ -50,7 +50,8 @@ async function openIt() {
 
 /** 业务自定义动作：组件里点「稍后提醒」，回传的是业务枚举 + 数据 */
 async function openRemindLater() {
-  lastCall.value = 'await controlledDialog.open(…) → 组件里 close(ControlledAction.RemindLater, 时间)'
+  lastCall.value =
+    'await controlledDialog.open(…) → 组件里 close(ControlledAction.RemindLater, 时间)'
   const result = await controlledDialog.open({
     content: '这次点底部「稍后提醒」：关闭动作是业务定义的 RemindLater，不是确认也不是取消。',
   })
@@ -65,7 +66,9 @@ async function openRemindLater() {
 async function openWithCallback() {
   lastCall.value = 'controlledDialog.open(params, { onResult, onConfirm, onCancel, onClose })'
   await controlledDialog.open(
-    { content: '这次用回调写法：onResult 拿到完整结果，onConfirm / onCancel / onClose 按动作拆开。' },
+    {
+      content: '这次用回调写法：onResult 拿到完整结果，onConfirm / onCancel / onClose 按动作拆开。',
+    },
     {
       onResult: (result) => {
         lastPromise.value = `onResult → ${formatResult(result.action, result.data)}`
@@ -197,7 +200,6 @@ handle.destroy()                          // 立即销毁（调用方收到 acti
 
 // 这些能力由包裹器自己在"重复 open 时销毁旧实例"等场景使用；
 // 业务侧的正常路径只有 await open()。`
-
 </script>
 
 <template>
@@ -210,10 +212,19 @@ handle.destroy()                          // 立即销毁（调用方收到 acti
       <el-alert type="info" :closable="false" show-icon>
         <template #title>
           <div class="wrapper-arch">
-            <p><b>业务弹窗组件</b>：完全正常的 Vue 组件，自己写 <code>&lt;el-dialog&gt;</code>、自己写按钮和关闭逻辑。</p>
+            <p>
+              <b>业务弹窗组件</b>：完全正常的 Vue 组件，自己写
+              <code>&lt;el-dialog&gt;</code>、自己写按钮和关闭逻辑。
+            </p>
             <p><b>平行位置的 ts</b>：用 <code>wrapDialog(组件, { name })</code> 包成句柄并导出。</p>
-            <p><b>业务代码</b>：只 import 这个 ts，<code>await .open()</code> 拿到 <code>{ action, data }</code>；打开、关闭、销毁都不归它管。</p>
-            <p>包裹器负责挂载到 body、注入 visible/params、收集结果；弹窗自己负责什么时候显示、什么时候关。</p>
+            <p>
+              <b>业务代码</b>：只 import 这个 ts，<code>await .open()</code> 拿到
+              <code>{ action, data }</code>；打开、关闭、销毁都不归它管。
+            </p>
+            <p>
+              包裹器负责挂载到 body、注入
+              visible/params、收集结果；弹窗自己负责什么时候显示、什么时候关。
+            </p>
           </div>
         </template>
       </el-alert>
@@ -226,11 +237,11 @@ handle.destroy()                          // 立即销毁（调用方收到 acti
     >
       <div class="demo-actions">
         <el-button type="primary" @click="openIt">await open() 打开</el-button>
-        <el-button type="success" plain @click="openRemindLater">业务自定义动作（稍后提醒）</el-button>
+        <el-button type="success" plain @click="openRemindLater"
+          >业务自定义动作（稍后提醒）</el-button
+        >
         <el-button @click="openWithCallback">open() + 回调</el-button>
-        <el-button type="warning" plain @click="openAutoClose">
-          弹窗自己 3 秒后关闭
-        </el-button>
+        <el-button type="warning" plain @click="openAutoClose"> 弹窗自己 3 秒后关闭 </el-button>
       </div>
 
       <div class="demo-result">

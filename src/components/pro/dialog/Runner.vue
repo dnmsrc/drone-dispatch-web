@@ -29,9 +29,7 @@ const props = defineProps({
   hooks: { type: Object as PropType<RunnerHooks>, default: undefined },
   /** 关闭动作与业务数据（由 mountRunner 包装后交给包裹器） */
   onSettle: {
-    type: Function as PropType<
-      (payload: { action: DialogAction | string; data: unknown }) => void
-    >,
+    type: Function as PropType<(payload: { action: DialogAction | string; data: unknown }) => void>,
     required: true,
   },
   /** 运行时就绪：把「程序化关闭」入口交给挂载引擎 */

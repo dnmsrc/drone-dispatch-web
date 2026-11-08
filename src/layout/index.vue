@@ -45,7 +45,11 @@ onBeforeUnmount(() => window.removeEventListener('resize', onResize))
 <template>
   <div class="app-layout">
     <div v-show="isMobile && drawerOpen" class="app-drawer-mask" @click="drawerOpen = false"></div>
-    <Sidebar :collapsed="collapsed" :is-mobile="isMobile" :class="{ 'is-drawer-open': drawerOpen }" />
+    <Sidebar
+      :collapsed="collapsed"
+      :is-mobile="isMobile"
+      :class="{ 'is-drawer-open': drawerOpen }"
+    />
     <div class="app-main-wrap">
       <Navbar :collapsed="collapsed" :is-mobile="isMobile" @toggle="onToggle" />
       <TagsView />

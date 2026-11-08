@@ -146,7 +146,10 @@ export const mockOrders: MockOrder[] = [
 ]
 
 /** 状态 → 文字 / 标签色（表格 render 演示用） */
-export const ORDER_STATUS_MAP: Record<string, { text: string; type: 'primary' | 'success' | 'warning' | 'danger' | 'info' }> = {
+export const ORDER_STATUS_MAP: Record<
+  string,
+  { text: string; type: 'primary' | 'success' | 'warning' | 'danger' | 'info' }
+> = {
   pending: { text: '待接单', type: 'warning' },
   accepted: { text: '已接单', type: 'primary' },
   performing: { text: '执行中', type: 'primary' },

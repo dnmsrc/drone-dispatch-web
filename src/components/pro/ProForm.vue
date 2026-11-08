@@ -61,8 +61,7 @@ const resolvedFields = computed<FormFieldConfig[]>(() =>
   props.fields.map((field) => ({
     ...field,
     hidden: typeof field.hidden === 'function' ? !!field.hidden(props.model) : field.hidden,
-    disabled:
-      typeof field.disabled === 'function' ? !!field.disabled(props.model) : field.disabled,
+    disabled: typeof field.disabled === 'function' ? !!field.disabled(props.model) : field.disabled,
   })),
 )
 

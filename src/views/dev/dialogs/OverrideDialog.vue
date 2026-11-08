@@ -59,12 +59,7 @@ defineExpose({ open, close })
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
-    class="pro-dialog"
-    :title="props.title"
-    width="520px"
-  >
+  <el-dialog v-model="visible" class="pro-dialog" :title="props.title" width="520px">
     <div class="pro-dialog-text">{{ props.content }}</div>
 
     <template #footer>

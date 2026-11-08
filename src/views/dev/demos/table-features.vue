@@ -68,20 +68,36 @@ const actions: TableActions = {
   width: 180,
   max: 3,
   buttons: [
-    { text: '详情', type: 'primary', onClick: (row) => { ElMessage.info(`查看订单 ${row.id}`) } },
+    {
+      text: '详情',
+      type: 'primary',
+      onClick: (row) => {
+        ElMessage.info(`查看订单 ${row.id}`)
+      },
+    },
     {
       text: '编辑',
       type: 'primary',
       show: (row) => row.status === 'pending',
-      onClick: (row) => { ElMessage.info(`编辑订单 ${row.id}`) },
+      onClick: (row) => {
+        ElMessage.info(`编辑订单 ${row.id}`)
+      },
     },
     {
       text: '删除',
       type: 'danger',
       confirm: (row) => `确认删除订单 ${row.id}？删除后不可恢复。`,
-      onClick: (row) => { ElMessage.success(`已删除 ${row.id}（演示）`) },
+      onClick: (row) => {
+        ElMessage.success(`已删除 ${row.id}（演示）`)
+      },
     },
-    { text: '导出', type: 'primary', onClick: (row) => { ElMessage.info(`导出 ${row.id}`) } },
+    {
+      text: '导出',
+      type: 'primary',
+      onClick: (row) => {
+        ElMessage.info(`导出 ${row.id}`)
+      },
+    },
   ],
 }
 

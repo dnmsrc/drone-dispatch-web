@@ -72,9 +72,7 @@ const okLoading = ref(false)
  * 通过后再做表单校验，都通过才关闭并把数据交回。
  */
 async function handleOk() {
-  const hook = params.beforeOk as
-    | (() => boolean | void | Promise<boolean | void>)
-    | undefined
+  const hook = params.beforeOk as (() => boolean | void | Promise<boolean | void>) | undefined
   if (hook) {
     okLoading.value = true
     try {
@@ -94,12 +92,7 @@ async function handleOk() {
 </script>
 
 <template>
-  <el-dialog
-    v-model="visible"
-    class="pro-dialog"
-    :title="title"
-    :width="props.width ?? 640"
-  >
+  <el-dialog v-model="visible" class="pro-dialog" :title="title" :width="props.width ?? 640">
     <p v-if="props.description" class="pro-dialog-desc">{{ props.description }}</p>
 
     <ProForm

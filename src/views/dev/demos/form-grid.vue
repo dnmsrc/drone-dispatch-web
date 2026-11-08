@@ -55,11 +55,7 @@ const fields: FormFieldConfig[] = [
 
 <template>
   <div class="demo-page">
-    <DemoBlock
-      title="栅格宽度"
-      desc="span 按 24 栅格分配列宽，offset 控制左侧偏移"
-      :code="code"
-    >
+    <DemoBlock title="栅格宽度" desc="span 按 24 栅格分配列宽，offset 控制左侧偏移" :code="code">
       <ProForm :model="gridModel" :fields="gridFields" />
     </DemoBlock>
 

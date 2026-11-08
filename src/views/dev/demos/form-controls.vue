@@ -170,7 +170,10 @@ const fields: FormFieldConfig[] = [
 
 <template>
   <div class="demo-page">
-    <DemoBlock title="文本 / 数字 / 布尔" desc="input、textarea、password、input-number、switch、slider、rate、color">
+    <DemoBlock
+      title="文本 / 数字 / 布尔"
+      desc="input、textarea、password、input-number、switch、slider、rate、color"
+    >
       <ProForm :model="model" :fields="textFields" label-width="110px" />
     </DemoBlock>
 
@@ -178,7 +181,10 @@ const fields: FormFieldConfig[] = [
       <ProForm :model="model" :fields="selectFields" label-width="110px" />
     </DemoBlock>
 
-    <DemoBlock title="日期时间" desc="date、datetime、daterange、month、year、time，默认值格式 YYYY-MM-DD 等">
+    <DemoBlock
+      title="日期时间"
+      desc="date、datetime、daterange、month、year、time，默认值格式 YYYY-MM-DD 等"
+    >
       <ProForm :model="model" :fields="dateFields" label-width="110px" />
     </DemoBlock>
 
