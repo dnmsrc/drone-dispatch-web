@@ -19,6 +19,7 @@ import {
   DialogAction,
   confirmDialog,
   createFormDialog,
+  twoLineCell,
 } from '@/components/pro'
 import type { FormFieldConfig, TableActions, TableColumn, TablePagination } from '@/components/pro'
 import { CONSULT_STATUS_MAP, fmtMoney, fmtTime, venueSub } from '@/utils/format'
@@ -90,40 +91,28 @@ onMounted(() => void load())
 // el-table 不拉伸 → 右侧出现整列空白。这里给「文本变长就少截断」收益最大的
 // 三列（用户/场地/判定结论）改用 minWidth：窄屏以原型值为下限横向滚动（观感
 // 同原型），宽屏剩余空间按比例摊给这三列、表格始终铺满容器（演示页同款机制）。
-/** 双行单元格：主行 + 灰色副行（原型 .cell-sub 结构） */
-function twoLine(main: string, sub: string, ellipsis = false) {
-  return h('div', {}, [
-    h(
-      'div',
-      { class: ellipsis ? 'ellipsis' : undefined, title: ellipsis ? main : undefined },
-      main,
-    ),
-    h('div', { class: 'cell-sub ellipsis', title: sub }, sub || '—'),
-  ])
-}
-
 const columns: TableColumn[] = [
   { prop: 'id', label: '咨询单号', width: 160 },
   {
     label: '用户',
     minWidth: 85,
-    render: ({ row }) => twoLine(row.user?.nickname || '—', row.user?.phone ?? '', true),
+    render: ({ row }) => twoLineCell(row.user?.nickname || '—', row.user?.phone ?? '', true),
   },
   {
     label: '场地',
     minWidth: 90,
-    render: ({ row }) => twoLine(row.venue?.name || '—', venueSub(row.venue), true),
+    render: ({ row }) => twoLineCell(row.venue?.name || '—', venueSub(row.venue), true),
   },
   {
     label: '申请日期/时段',
     width: 118,
-    render: ({ row }) => twoLine(row.performDate || '—', row.timeSlot ?? ''),
+    render: ({ row }) => twoLineCell(row.performDate || '—', row.timeSlot ?? ''),
   },
   {
     label: '架次',
     width: 75,
     render: ({ row }) =>
-      twoLine(
+      twoLineCell(
         `${row.need?.droneCount ?? '—'} 架`,
         row.need?.duration ? `${row.need.duration} 分钟` : '—',
       ),

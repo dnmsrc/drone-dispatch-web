@@ -10,6 +10,9 @@ export { default as ProField } from './ProField.vue'
 export { default as ProTable } from './ProTable.vue'
 export { default as ProSearch } from './ProSearch.vue'
 
+// 单元格公共 VNode 构造器（columns[].render 用，多行/省略结构全局统一口径）
+export { twoLineCell } from './cells'
+
 // 弹窗包裹器：业务正常写弹窗组件 + 平行位置的 ts 配置文件，
 // 业务里只 `await xxx.open()` 拿「动作 + 数据」，弹窗自己控制打开/关闭。
 // 结果判断用 DialogAction 枚举（确认 / 取消 / 关闭 / 超时 / 顶掉 / 销毁），
