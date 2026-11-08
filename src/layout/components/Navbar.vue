@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { clearToken } from '@/utils/http'
 
 defineProps<{
   collapsed: boolean
@@ -37,8 +38,10 @@ async function onCommand(cmd: string) {
       cancelButtonText: '取消',
       type: 'warning',
     })
-    // 登录/鉴权待接入服务端，接入后改为 auth.logout() + 跳转登录页
-    ElMessage.info('登录鉴权待接入服务端')
+    // 清除加密存储的 token 密文并回到登录页；服务端接入后此处补调登出接口
+    clearToken()
+    router.push('/login')
+    ElMessage.success('已退出登录')
   }
 }
 </script>

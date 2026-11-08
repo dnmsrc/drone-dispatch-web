@@ -74,6 +74,12 @@ export const menuRoutes: RouteRecordRaw[] = [
 ]
 
 const routes: RouteRecordRaw[] = [
+  // 登录页脱离 Layout 全屏展示；鉴权守卫接入后未登录访问受保护路由将重定向到此
+  {
+    path: '/login',
+    component: () => import('@/views/login/index.vue'),
+    meta: { title: '登录', hidden: true },
+  },
   {
     path: '/',
     component: Layout,

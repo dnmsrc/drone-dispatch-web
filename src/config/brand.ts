@@ -6,4 +6,5 @@ import { env } from './env'
 export const brand = {
   appName: env.appName,
   adminTitle: env.appTitle,
+  footer: env.appFooter,
 } as const
