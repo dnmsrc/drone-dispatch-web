@@ -79,7 +79,7 @@ async function edit(row: OrderFormData) {
   ElMessage.success('已保存（演示）')
 }
 
-const code = `// ① 平行配置：src/views/dev/dialogs/order-form.dialog.ts
+const code = `// ① 平行配置：src/playground/dev/dialogs/order-form.dialog.ts
 const fields: FormFieldConfig[] = [
   { prop: 'id', label: '订单号', control: 'input', required: true },
   { prop: 'venue', label: '表演场地', control: 'select', options: VENUE_OPTIONS },

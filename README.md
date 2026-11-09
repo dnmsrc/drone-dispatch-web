@@ -570,10 +570,10 @@ Sidebar 直接遍历该数组生成菜单 —— **新增页面 = 在 menuRoutes
 
 ### 新增一个演示页
 
-1. `src/views/dev/demos/` 下建文件（用 `DemoBlock` + 对应组件）
+1. `src/playground/dev/demos/` 下建文件（用 `DemoBlock` + 对应组件）
 2. `src/router/dev.ts` 加一条子路由（`path`、`component`、`meta.title`）
-3. `src/views/dev/menu.ts` 对应分组里加一条菜单（`title` 与 `meta.title` 保持一致）
-4. 弹窗类演示的**业务组件 + 平行 ts 配置文件**放在 `src/views/dev/dialogs/`，演示页 import ts 来 `open`，
+3. `src/playground/dev/menu.ts` 对应分组里加一条菜单（`title` 与 `meta.title` 保持一致）
+4. 弹窗类演示的**业务组件 + 平行 ts 配置文件**放在 `src/playground/dev/dialogs/`，演示页 import ts 来 `open`，
    这样测试场里演示的就是业务里真实的使用方式
 
 ### 移动端
