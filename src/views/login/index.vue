@@ -15,6 +15,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Key, Lock, User } from '@element-plus/icons-vue'
 import { brand } from '@/config/brand'
+import { useAuthStore } from '@/stores/auth'
 
 /** 表单模型（与原型字段一致） */
 interface LoginForm {
@@ -41,11 +42,13 @@ const DEMO_ACCOUNTS: Record<string, string> = {
 /** 演示验证码固定内容 */
 const CAPTCHA_TEXT = '1234'
 
-/** 「记住密码」本地存储键（存的是演示账号回显，非 token，与原型一致） */
-const REMEMBER_KEY = '***'
+/** 「记住密码」本地存储键（存的是演示账号回显，非 token；原型同款 remember_account，
+ *  注意不可与登录态键 admin_info 同名，否则 remember=false 的 removeItem 会把登录态抹掉） */
+const REMEMBER_KEY = 'remember_account'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
@@ -110,6 +113,8 @@ async function submit(): Promise<void> {
   loading.value = true
   try {
     await mockLogin(form.username, form.password)
+    // 写入登录态（角色控制依据，如退款审批仅 ADMIN 可见）；键名与原型 admin_info 一致
+    auth.loginAs(form.username)
     // TODO(接入服务端): auth store 登录后调用 setToken(token) 完成加密持久化
     if (form.remember) {
       localStorage.setItem(

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { clearToken } from '@/utils/http'
+import { useAuthStore } from '@/stores/auth'
 
 defineProps<{
   collapsed: boolean
@@ -15,9 +16,15 @@ defineEmits<{
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 
-// 登录接入后改为从用户 store 读取
-const userName = computed(() => '管理员')
+// 登录态来自 stores/auth（登录成功写入；直连开发无登录态时兜底「管理员」）
+const userName = computed(() => auth.admin?.name || '管理员')
+/** 头像首字符：中文取首字、英文取大写首字母 */
+const avatarChar = computed(() => {
+  const n = userName.value
+  return /[a-zA-Z]/.test(n[0] ?? '') ? n[0].toUpperCase() : n.slice(0, 1)
+})
 
 function toggleFullscreen() {
   if (document.fullscreenElement) {
@@ -38,8 +45,9 @@ async function onCommand(cmd: string) {
       cancelButtonText: '取消',
       type: 'warning',
     })
-    // 清除加密存储的 token 密文并回到登录页；服务端接入后此处补调登出接口
+    // 清除加密存储的 token 密文与登录态并回到登录页；服务端接入后此处补调登出接口
     clearToken()
+    auth.logout()
     router.push('/login')
     ElMessage.success('已退出登录')
   }
@@ -69,7 +77,7 @@ async function onCommand(cmd: string) {
 
       <el-dropdown trigger="click" @command="onCommand">
         <div class="app-navbar-user">
-          <el-avatar :size="30">管</el-avatar>
+          <el-avatar :size="30">{{ avatarChar }}</el-avatar>
           <span class="app-navbar-user-nick">{{ userName }}</span>
           <el-icon><CaretBottom /></el-icon>
         </div>
