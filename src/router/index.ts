@@ -28,12 +28,12 @@ export const menuRoutes: RouteRecordRaw[] = [
   },
   {
     path: 'order/list',
-    component: () => import('@/views/order/list.vue'),
+    component: () => import('@/views/order/index.vue'),
     meta: { title: '订单管理', icon: 'Tickets' },
   },
   {
     path: 'refund/list',
-    component: () => import('@/views/refund/list.vue'),
+    component: () => import('@/views/refund/index.vue'),
     meta: { title: '退款管理', icon: 'RefreshLeft' },
   },
   {
@@ -43,17 +43,17 @@ export const menuRoutes: RouteRecordRaw[] = [
   },
   {
     path: 'user/list',
-    component: () => import('@/views/user/list.vue'),
+    component: () => import('@/views/user/index.vue'),
     meta: { title: '用户管理', icon: 'User' },
   },
   {
     path: 'review/list',
-    component: () => import('@/views/review/list.vue'),
+    component: () => import('@/views/review/index.vue'),
     meta: { title: '评价管理', icon: 'Star' },
   },
   {
     path: 'venue/list',
-    component: () => import('@/views/venue/list.vue'),
+    component: () => import('@/views/venue/index.vue'),
     meta: { title: '场地管理', icon: 'MapLocation' },
   },
   {

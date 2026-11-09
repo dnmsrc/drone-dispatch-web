@@ -18,7 +18,7 @@ import type { FormFieldConfig, TableActions, TableColumn, TablePagination } from
 import { fmtMoney, fmtTime, orderSummary } from '@/utils/format'
 import { ORDER_STATUS_OPTIONS } from './constants'
 import { queryOrders } from './mock'
-import OrderDetailDrawer from './dialogs/OrderDetailDrawer.vue'
+import OrderDetailDrawer from './components/OrderDetailDrawer.vue'
 import type { OrderRow } from './types'
 
 /* ═══ 查询状态 ═══ */

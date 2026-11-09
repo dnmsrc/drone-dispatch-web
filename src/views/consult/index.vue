@@ -25,8 +25,8 @@ import type { FormFieldConfig, TableActions, TableColumn, TablePagination } from
 import { CONSULT_STATUS_MAP, fmtMoney, fmtTime, venueSub } from '@/utils/format'
 import { STATUS_KEYS, TABS, quoteText } from './constants'
 import { actDispatch, actReceive, actReject, consultStore, deriveCounts } from './mock'
-import { dispatchDialog } from './dialogs/dispatch.dialog'
-import ConsultDetailDrawer from './dialogs/ConsultDetailDrawer.vue'
+import { dispatchDialog } from './components/dispatch.dialog'
+import ConsultDetailDrawer from './components/ConsultDetailDrawer.vue'
 import type { ConsultRow } from './types'
 
 /* ═══ 查询状态 ═══ */
