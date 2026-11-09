@@ -38,9 +38,7 @@ function goHome() {
           />
         </svg>
       </span>
-      <span v-show="!collapsed || isMobile" class="app-sidebar-logo-text">{{
-        brand.adminTitle
-      }}</span>
+      <span v-show="!collapsed || isMobile" class="app-sidebar-logo-text">{{ brand.appName }}</span>
     </div>
 
     <el-scrollbar class="app-sidebar-menu">

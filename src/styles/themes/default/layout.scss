@@ -43,10 +43,13 @@
 }
 
 .app-sidebar-logo-text {
+  min-width: 0;
+  overflow: hidden;
   color: #fff;
   font-size: $font-size-md;
   font-weight: 700;
   letter-spacing: 1px;
+  text-overflow: ellipsis;
 }
 
 .app-sidebar-menu {
