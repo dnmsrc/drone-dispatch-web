@@ -274,7 +274,7 @@ async function handleAction(
     try {
       await ElMessageBox.confirm(message, '提示', {
         type: 'warning',
-        confirmButtonText: '确定',
+        confirmButtonText: button.confirmButtonText ?? '确定',
         cancelButtonText: '取消',
       })
     } catch {

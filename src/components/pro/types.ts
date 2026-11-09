@@ -190,6 +190,8 @@ export interface TableActionButton {
   disabled?: (row: Record<string, any>, index: number) => boolean
   /** 二次确认文案：传了就弹确认框，确认后执行 onClick */
   confirm?: string | ((row: Record<string, any>, index: number) => string)
+  /** 二次确认框的确认按钮文字，默认「确定」；危险删除动作可传「删除」 */
+  confirmButtonText?: string
   /** 点击回调（confirm 存在时为确认后的回调） */
   onClick?: (row: Record<string, any>, index: number) => void | Promise<void>
 }
