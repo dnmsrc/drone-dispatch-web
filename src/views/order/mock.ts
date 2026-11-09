@@ -123,8 +123,11 @@ export interface SeedSpec {
   contact: { name: string; phone: string }
   createdDaysAgo: number
   review?: { stars: number; content: string }
-  refund?: { reason: string; ratio: number }
+  /** 待审批退款申请（订单置 REFUNDING）；prevStatus 缺省 PENDING_ACCEPT（全额退），ACCEPTED 来源按阶梯比例 */
+  refund?: { reason: string; ratio: number; prevStatus?: string }
   refundApproved?: { reason: string; ratio: number }
+  /** 已拒绝的退款申请（订单保持 ACCEPTED 继续履约，note 为拒绝理由） */
+  refundRejected?: { reason: string; ratio: number; note: string }
   rejectReason?: string
   cancelReason?: string
 }
@@ -240,6 +243,11 @@ const SPECS: SeedSpec[] = [
     },
     contact: { name: '糖糖', phone: '15911118880' },
     createdDaysAgo: 4,
+    refundRejected: {
+      reason: '想改到下个周末，先把钱退了再重新下单',
+      ratio: 0.5,
+      note: '距表演仅 5 天，机组与空域已锁定排期，不予退改；订单将按原计划执行',
+    },
   },
   {
     userId: 'u1001',
@@ -396,6 +404,37 @@ const SPECS: SeedSpec[] = [
     contact: { name: '张总', phone: '13988880032' },
     createdDaysAgo: 2,
     refund: { reason: '公司活动时间调整，需要改期', ratio: 1 },
+  },
+  // 退款中扩展（退款管理页演示）：已接单·距表演 7 天以上按 90% 阶梯退
+  {
+    userId: 'u1001',
+    status: 'REFUNDING',
+    droneCount: 300,
+    duration: 15,
+    customText: '全家福二十周年',
+    addons: ['aerial'],
+    occasion: '家庭聚会',
+    performInDays: 10,
+    timeSlot: '19:00-20:00',
+    venue: presetVenue(4),
+    contact: { name: '李先生', phone: '13866668801' },
+    createdDaysAgo: 4,
+    refund: { reason: '父亲突然住院，今年的家庭聚会只能取消', ratio: 0.9, prevStatus: 'ACCEPTED' },
+  },
+  // 退款中扩展：待接单状态申请，可全额退（mock-server REFUNDING 口径）
+  {
+    userId: 'u1005',
+    status: 'REFUNDING',
+    droneCount: 200,
+    duration: 10,
+    addons: ['music'],
+    occasion: '奠基仪式',
+    performInDays: 6,
+    timeSlot: '19:00-20:00',
+    venue: presetVenue(2),
+    contact: { name: '王老板', phone: '15077774442' },
+    createdDaysAgo: 1,
+    refund: { reason: '开工日期预报有暴雨，想先退款推迟半月再重新排期', ratio: 1 },
   },
 
   // 已退款（用户申请审批通过）
@@ -611,7 +650,7 @@ function mkOrder(seq: number, spec: SeedSpec): OrderRow {
       ratio: spec.refund.ratio,
       applyAmount: Math.round(total * spec.refund.ratio),
       status: 'PENDING',
-      prevStatus: 'PENDING_ACCEPT',
+      prevStatus: spec.refund.prevStatus ?? 'PENDING_ACCEPT',
       auditBy: '',
       auditNote: '',
       refundAmount: 0,
@@ -619,7 +658,31 @@ function mkOrder(seq: number, spec: SeedSpec): OrderRow {
       createdAt: iso(0),
       auditedAt: '',
     }
+    // 已接单来源的申请：REFUNDING 不走常规接单分支，此处补记接单信息保证数据自洽
+    if (o.refund.prevStatus === 'ACCEPTED') {
+      o.acceptedBy = 'operator'
+      o.acceptedAt = new Date(created.getTime() + 2 * 3_600_000).toISOString()
+      push(o.acceptedAt, '操作员已接单，表演筹备中')
+    }
     push(o.refund.createdAt!, `用户申请退款：${spec.refund.reason}`)
+  }
+  if (spec.refundRejected) {
+    const { reason, ratio, note } = spec.refundRejected
+    o.refund = {
+      reason,
+      ratio,
+      applyAmount: Math.round(total * ratio),
+      status: 'REJECTED',
+      prevStatus: 'ACCEPTED',
+      auditBy: 'admin',
+      auditNote: note,
+      refundAmount: 0,
+      refundNo: '',
+      createdAt: iso(2),
+      auditedAt: iso(1),
+    }
+    push(o.refund.createdAt, `用户申请退款：${reason}`)
+    push(o.refund.auditedAt, `退款申请被拒绝：${note}`)
   }
   if (spec.refundApproved) {
     const { reason, ratio } = spec.refundApproved
@@ -802,4 +865,30 @@ export function actComplete(row: OrderRow, payload: CompleteFormData): void {
 /** 「自动生成演示照片」的默认回传（server complete 兜底同款） */
 export function autoDemoPhotos(orderId: string): string[] {
   return [1, 2, 3, 4].map((i) => `/api/media/photo/${orderId}-${i}`)
+}
+
+/** 退款审批·批准：refund PENDING → APPROVED、订单置 REFUNDED（server /admin/refunds/:id/approve 同款写入语义） */
+export function actRefundApprove(row: OrderRow, amount: number, note: string): void {
+  if (!row.refund) return
+  const at = new Date().toISOString()
+  row.refund.status = 'APPROVED'
+  row.refund.refundAmount = amount
+  row.refund.auditBy = 'admin'
+  row.refund.auditNote = note || '同意退款'
+  row.refund.auditedAt = at
+  row.refund.refundNo = `R${row.id.slice(1)}`
+  row.status = 'REFUNDED'
+  pushTimeline(row, `退款审批通过，退款 ¥${amount}（原路返回）`)
+}
+
+/** 退款审批·拒绝：refund PENDING → REJECTED、订单回滚申请前状态（server reject 同款；理由对用户可见） */
+export function actRefundReject(row: OrderRow, note: string): void {
+  if (!row.refund) return
+  const at = new Date().toISOString()
+  row.refund.status = 'REJECTED'
+  row.refund.auditBy = 'admin'
+  row.refund.auditNote = note
+  row.refund.auditedAt = at
+  row.status = row.refund.prevStatus || 'PENDING_ACCEPT'
+  pushTimeline(row, `退款申请被拒绝：${note}`)
 }
