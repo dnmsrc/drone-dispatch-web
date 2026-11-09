@@ -145,9 +145,14 @@ instance.interceptors.response.use(
       return data
     }
 
-    // 业务码 401：按未授权统一处理
+    // 业务码 401：按未授权统一处理（清 token；非 skipAuthHandler 还会跳登录页）
     if (code === UNAUTHORIZED_CODE) {
       handleUnauthorized(config, message)
+      // skipAuthHandler（如登录接口）已跳过全局跳页处理器，这里补回统一错误提示，
+      // 否则密码错误这类业务 401 会静默无反馈；silent 时仍交由调用方自行处理
+      if (config.skipAuthHandler && !config.silent) {
+        notifyError(message)
+      }
       throw new HttpError(message, { kind: 'business', code, raw: payload })
     }
 
