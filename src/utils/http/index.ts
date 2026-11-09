@@ -90,6 +90,10 @@ let unauthorizedPending = false
 function handleUnauthorized(config: InternalAxiosRequestConfig, message?: string): void {
   // 清除本地加密 token（密文 Cookie）；登录态以后端会话为准
   clearToken()
+
+  // 登录等接口显式跳过全局未授权处理：不跳登录页、不弹全局提示，错误抛回调用方自行处理
+  if (config.skipAuthHandler) return
+
   if (unauthorizedPending) return
   unauthorizedPending = true
   window.setTimeout(() => {

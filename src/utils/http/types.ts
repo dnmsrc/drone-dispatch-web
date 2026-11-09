@@ -47,6 +47,12 @@ export interface RequestOptions {
   tokenHeader?: string
   /** 是否携带 token，默认 true；登录等公开接口设 false 即不带鉴权头 */
   withToken?: boolean
+  /**
+   * 跳过全局 401 处理器：true 时即使返回 401 也不触发注册的未授权回调（不自动跳登录页），
+   * 仅清理本地 token 后把错误抛给调用方自行处理。登录接口必传——密码错误返回业务 401，
+   * 此时本就停在登录页，全局跳转反而会打断页面自己的错误提示。
+   */
+  skipAuthHandler?: boolean
 }
 
 // 模块增强：让 axios 的 config 类型认识上面的业务字段
@@ -56,6 +62,7 @@ declare module 'axios' {
     successCode?: number | number[]
     tokenHeader?: string
     withToken?: boolean
+    skipAuthHandler?: boolean
   }
 }
 
