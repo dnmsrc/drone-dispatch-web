@@ -9,8 +9,12 @@
   max-width: calc(100vw - 32px);
 }
 
+// 注意：Element 原生 .el-message-box 为 width:100% + max-width:var(--el-messagebox-width,420px)，
+// 靠 max-width 把宽度钳在 420px。若直接覆盖成 calc(100vw - 32px)，宽屏下该上限（如 1915px 屏→1883px）
+// 会远大于 420px，等于放开钳制、弹窗随 width:100% 铺满全屏。
+// 这里用 min() 同时尊重「原生 420px 设计宽度」与「小屏不超出视口」两个上限，取更小者。
 .el-message-box {
-  max-width: calc(100vw - 32px);
+  max-width: min(var(--el-messagebox-width, 420px), calc(100vw - 32px));
 }
 
 .el-drawer {
