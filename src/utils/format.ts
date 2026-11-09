@@ -37,9 +37,11 @@ export interface StatusConf {
   color?: string
 }
 
-/** 订单状态字典（颜色规范：待支付橙/待接单红/已接单蓝/执行中紫/已完成绿/已评价青/已取消灰/退款中橙红/已退款深灰） */
+/** 订单状态字典（颜色规范：待支付橙/部分已付金橙/待接单红/已接单蓝/执行中紫/已完成绿/已评价青/已取消灰/退款中橙红/已退款深灰） */
 export const STATUS_MAP: Record<string, StatusConf> = {
   PENDING_PAY: { text: '待支付', type: 'warning' },
+  // v2 状态机新增：分期预付款已到、尾款未付（一次性全额支付跳过此态）
+  PARTIALLY_PAID: { text: '部分已付', color: '#D97706' },
   PENDING_ACCEPT: { text: '待接单', type: 'danger' },
   ACCEPTED: { text: '已接单·待执行', type: 'primary' },
   IN_SERVICE: { text: '执行中', color: '#8B5CF6' },
@@ -82,10 +84,11 @@ export const VENUE_TYPE_LABELS: Record<string, string> = {
   manual: '手动输入',
 }
 
-/** 支付渠道字典 */
+/** 支付渠道字典（在线：微信/支付宝；对公转账时渠道固定 OFFLINE） */
 export const PAY_CHANNEL_LABELS: Record<string, string> = {
   WECHAT: '微信支付',
   ALIPAY: '支付宝',
+  OFFLINE: '对公转账',
 }
 
 /** 订单方案摘要：300架·15分钟·定制文字（订单对象取接口返回的原始结构） */
@@ -158,4 +161,76 @@ export function venueSub(v: { type?: string; address?: string } | null | undefin
   if (typeText) parts.push(typeText)
   if (v.address) parts.push(v.address)
   return parts.join(' · ') || '—'
+}
+
+/* ════════════════════════════════════════════════════════════
+ * 合同与分期域（v2 数据模型新增：contracts / payment_schedule /
+ * payments / company_bank_accounts / order_media / admin_users）
+ * ════════════════════════════════════════════════════════════ */
+
+/** 合同签署状态字典（contracts.sign_status：草稿灰/待签橙/已签绿/作废深灰） */
+export const CONTRACT_SIGN_MAP: Record<string, StatusConf> = {
+  DRAFT: { text: '草稿', type: 'info' },
+  PENDING_SIGN: { text: '待签署', type: 'warning' },
+  SIGNED: { text: '已签署', type: 'success' },
+  VOID: { text: '已作废', color: '#4B5563' },
+}
+
+/** 合同付款计划期次状态字典（contract_payment_schedule.status） */
+export const SCHEDULE_STATUS_MAP: Record<string, StatusConf> = {
+  PENDING: { text: '待付', type: 'info' },
+  PARTIAL: { text: '部分已付', type: 'warning' },
+  PAID: { text: '已付', type: 'success' },
+  OVERDUE: { text: '逾期', type: 'danger' },
+}
+
+/** 支付方式字典（payments.pay_method：在线支付 / 对公转账） */
+export const PAY_METHOD_LABELS: Record<string, string> = {
+  ONLINE: '在线支付',
+  OFFLINE: '对公转账',
+}
+
+/** 支付流水状态字典（payments.status） */
+export const PAYMENT_STATUS_MAP: Record<string, StatusConf> = {
+  PENDING: { text: '待支付', type: 'warning' },
+  SUCCESS: { text: '支付成功', type: 'success' },
+  FAILED: { text: '支付失败', type: 'danger' },
+  CLOSED: { text: '已关闭', type: 'info' },
+}
+
+/** 回传媒体类型字典（order_media.media_type） */
+export const MEDIA_TYPE_LABELS: Record<string, string> = {
+  PHOTO: '照片',
+  VIDEO: '视频',
+}
+
+/** 后台账号角色字典（admin_users.role） */
+export const ADMIN_ROLE_LABELS: Record<string, string> = {
+  ADMIN: '管理员',
+  OPERATOR: '操作员',
+}
+
+/** 甲方证件类型字典（contracts.party_a_id_type） */
+export const ID_TYPE_LABELS: Record<string, string> = {
+  ID_CARD: '身份证',
+  UNIFORM_CODE: '统一社会信用代码',
+}
+
+/**
+ * 比例 → 百分比文案（0.5 → 「50%」；非法值兜底「—」）。
+ * 合同付款计划的 ratio、退款比例等 DECIMAL(5,4) 比例字段通用。
+ */
+export function fmtPercent(ratio: number | string | null | undefined): string {
+  const n = Number(ratio)
+  if (ratio === null || ratio === undefined || Number.isNaN(n)) return '—'
+  // 去掉浮点尾数（0.30000000000000004 → 30），四舍五入到整数百分比
+  return `${Math.round(n * 10000) / 100}%`
+}
+
+/** 仅取日期部分（ISO 串 → YYYY-MM-DD）；空值或非法值返回「—」 */
+export function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }

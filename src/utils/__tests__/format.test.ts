@@ -8,10 +8,16 @@ import { describe, expect, it } from 'vitest'
 import {
   addonsText,
   CONSULT_STATUS_MAP,
+  CONTRACT_SIGN_MAP,
+  fmtDate,
   fmtMoney,
+  fmtPercent,
   fmtTime,
   orderSummary,
   patternsText,
+  PAYMENT_STATUS_MAP,
+  PAY_METHOD_LABELS,
+  SCHEDULE_STATUS_MAP,
   STATUS_MAP,
   todayStr,
   venueSub,
@@ -94,9 +100,10 @@ describe('format · STATUS_MAP 结构完整性', () => {
     }
   })
 
-  it('原型九种订单状态齐全', () => {
+  it('订单状态机十态齐全（v2 新增 PARTIALLY_PAID，位于待支付与待接单之间）', () => {
     expect(Object.keys(STATUS_MAP)).toEqual([
       'PENDING_PAY',
+      'PARTIALLY_PAID',
       'PENDING_ACCEPT',
       'ACCEPTED',
       'IN_SERVICE',
@@ -142,5 +149,62 @@ describe('format · venueSub', () => {
     expect(venueSub({})).toBe('—')
     expect(venueSub(null)).toBe('—')
     expect(venueSub(undefined)).toBe('—')
+  })
+})
+
+describe('format · fmtPercent', () => {
+  it('DECIMAL 比例转百分比文案', () => {
+    expect(fmtPercent(0.5)).toBe('50%')
+    expect(fmtPercent(0.9)).toBe('90%')
+    expect(fmtPercent(1)).toBe('100%')
+    expect(fmtPercent(0.125)).toBe('12.5%')
+  })
+
+  it('消除浮点尾数（0.1+0.2 不应出现 30.000000000000004%）', () => {
+    expect(fmtPercent(0.1 + 0.2)).toBe('30%')
+  })
+
+  it('数字字符串等价处理；空值/非法值返回「—」', () => {
+    expect(fmtPercent('0.2')).toBe('20%')
+    expect(fmtPercent(null)).toBe('—')
+    expect(fmtPercent(undefined)).toBe('—')
+    expect(fmtPercent('abc')).toBe('—')
+  })
+})
+
+describe('format · fmtDate', () => {
+  it('ISO 串只取 YYYY-MM-DD', () => {
+    expect(fmtDate('2026-11-08T10:20:30.000+08:00')).toBe('2026-11-08')
+  })
+
+  it('纯日期串原样返回；空值/非法值返回「—」', () => {
+    expect(fmtDate('2026-11-08')).toBe('2026-11-08')
+    expect(fmtDate('')).toBe('—')
+    expect(fmtDate(null)).toBe('—')
+    expect(fmtDate('nonsense')).toBe('—')
+  })
+})
+
+describe('format · 合同与分期域字典结构完整性', () => {
+  it('合同签署 / 付款期次 / 支付流水状态字典每项都有文案且带 type 或 color', () => {
+    for (const map of [CONTRACT_SIGN_MAP, SCHEDULE_STATUS_MAP, PAYMENT_STATUS_MAP]) {
+      for (const [key, conf] of Object.entries(map)) {
+        expect(conf.text, key).toBeTruthy()
+        expect(conf.type || conf.color, key).toBeTruthy()
+      }
+    }
+  })
+
+  it('合同签署四态齐全（DRAFT/PENDING_SIGN/SIGNED/VOID）', () => {
+    expect(Object.keys(CONTRACT_SIGN_MAP)).toEqual(['DRAFT', 'PENDING_SIGN', 'SIGNED', 'VOID'])
+  })
+
+  it('付款期次四态齐全（PENDING/PARTIAL/PAID/OVERDUE）', () => {
+    expect(Object.keys(SCHEDULE_STATUS_MAP)).toEqual(['PENDING', 'PARTIAL', 'PAID', 'OVERDUE'])
+  })
+
+  it('支付方式双通道文案存在（在线/对公）', () => {
+    expect(PAY_METHOD_LABELS.ONLINE).toBe('在线支付')
+    expect(PAY_METHOD_LABELS.OFFLINE).toBe('对公转账')
   })
 })
