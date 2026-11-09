@@ -332,7 +332,7 @@ onMounted(() => void load())
         <el-button :icon="ArrowRight" circle plain @click="shiftMonth(1)" />
         <el-button plain style="margin-left: 10px" @click="goToday">本月</el-button>
         <el-button
-          v-if="auth.isAdmin()"
+          v-if="auth.isAdmin"
           class="multi-btn"
           :type="multi ? 'primary' : 'default'"
           plain

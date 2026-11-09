@@ -6,14 +6,18 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 
 import App from './App.vue'
 import router from './router'
+import { setupAuthGuard } from './router/guard'
 import { setDialogAppContext } from './components/pro/dialog'
+import { useAuthStore } from './stores/auth'
 // 全局样式入口：主题包 + Element Plus 全量样式（SCSS 定制版）+ 控件重写 + 布局 + 公共组件
 import './styles/index.scss'
 
 /**
  * 应用启动
- * 用 async 包装的原因：开发环境要先异步加载「组件测试场」路由，再挂载应用，
- * 否则首次直接访问 /dev/playground 时路由还没注册，会落到 404 重定向。
+ * 用 async 包装的原因：
+ *   1. 开发环境要先异步加载「组件测试场」路由，再挂载应用，否则首次直接访问
+ *      /dev/playground 时路由还没注册，会落到 404 重定向；
+ *   2. 路由挂载前先凭持久化 token 恢复登录态（/auth/me），避免刷新瞬间被守卫误判为未登录。
  */
 async function bootstrap() {
   const app = createApp(App)
@@ -31,6 +35,13 @@ async function bootstrap() {
     const { devRoutes } = await import('./router/dev')
     for (const route of devRoutes) router.addRoute(route)
   }
+
+  // 登录鉴权：注册路由守卫与全局 401 处理器（依赖 pinia，须在其后）
+  setupAuthGuard(router)
+
+  // 路由挂载前恢复登录态：有本地登录痕迹时用 /auth/me 校正 token 有效性
+  const auth = useAuthStore()
+  await auth.restore()
 
   app.use(router)
   app.use(ElementPlus, { locale: zhCn })

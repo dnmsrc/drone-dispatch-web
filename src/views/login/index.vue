@@ -1,49 +1,30 @@
 <script setup lang="ts">
 /**
- * 登录页（静态版）—— UI 与交互完全参照原型 drone-dispatch-prototype/admin/src/views/login/index.vue。
+ * 登录页 —— 对接后端 JWT 登录（POST /api/auth/login）。
  *
- * 与原型版的差异仅两处：
- *   1. 移除「原型专用」的 ProtoTip 悬浮评审说明（原型注释即注明正式系统删除）；
- *   2. 登录动作暂由本页的演示账号逻辑完成（原型走 mock-server /admin/login）。
+ * UI 沿用原型 admin/src/views/login/index.vue 的视觉与布局，按正式系统调整：
+ *   1. 移除「原型专用」的 ProtoTip 悬浮评审说明；
+ *   2. 移除原型的本地伪验证码与演示账号 mock，改为 auth store 真实登录；
+ *   3. 「记住账号」仅回显上次登录账号（不再回显明文密码），体验保留、更安全。
  *
- * 接入服务端后：此处替换为 auth store 调 POST /admin/login，
- * 拿到的 token 经 setToken()（AES-GCM 加密写 Cookie，见 utils/http）持久化，
- * 「记住密码」等体验逻辑不变。
+ * 登录成功后 token 由 store 经 setToken()（AES-GCM 加密写 Cookie）持久化，
+ * 用户信息写 localStorage；请求层后续自动注入 Authorization: Bearer。
  */
 import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Key, Lock, User } from '@element-plus/icons-vue'
+import { Lock, User } from '@element-plus/icons-vue'
 import { brand } from '@/config/brand'
 import { useAuthStore } from '@/stores/auth'
 
-/** 表单模型（与原型字段一致） */
+/** 表单模型（后端 LoginRequest 只需要 username/password） */
 interface LoginForm {
   username: string
   password: string
-  captcha: string
   remember: boolean
 }
 
-/** 伪验证码的单个字符：内容固定，视觉随机（旋转/偏移/颜色），还原原型手绘感 */
-interface CaptchaChar {
-  text: string
-  deg: number
-  dy: number
-  color: string
-}
-
-/** 演示账号（原型 mock-server 同款）；接入服务端后随真实登录接口移除 */
-const DEMO_ACCOUNTS: Record<string, string> = {
-  admin: 'admin123',
-  operator: 'operator123',
-}
-
-/** 演示验证码固定内容 */
-const CAPTCHA_TEXT = '1234'
-
-/** 「记住密码」本地存储键（存的是演示账号回显，非 token；原型同款 remember_account，
- *  注意不可与登录态键 admin_info 同名，否则 remember=false 的 removeItem 会把登录态抹掉） */
+/** 「记住账号」本地存储键（只存账号名；不可与登录态键 admin_info 同名） */
 const REMEMBER_KEY = 'remember_account'
 
 const route = useRoute()
@@ -52,51 +33,21 @@ const auth = useAuthStore()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
-const form = reactive<LoginForm>({ username: '', password: '', captcha: '', remember: false })
+const form = reactive<LoginForm>({ username: '', password: '', remember: false })
 
 const rules: FormRules<LoginForm> = {
   username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
-  captcha: [{ required: true, message: '请输入验证码', trigger: 'blur' }],
-}
-
-const captchaChars = ref<CaptchaChar[]>([])
-
-/** 刷新验证码视觉样式（内容恒为 1234，仅字符角度/位移/颜色随机） */
-function shuffle(): void {
-  const colors = ['#2b5876', '#4e4376', '#409EFF', '#7b5ea7']
-  captchaChars.value = CAPTCHA_TEXT.split('').map((text, i) => ({
-    text,
-    deg: Math.floor(Math.random() * 30) - 15,
-    dy: Math.floor(Math.random() * 6) - 3,
-    color: colors[(i + Math.floor(Math.random() * 4)) % colors.length],
-  }))
 }
 
 onMounted(() => {
-  shuffle()
-  try {
-    const saved = JSON.parse(localStorage.getItem(REMEMBER_KEY) || 'null') as {
-      username?: string
-      password?: string
-    } | null
-    if (saved) {
-      form.username = saved.username ?? ''
-      form.password = saved.password ?? ''
-      form.remember = true
-    }
-  } catch {
-    localStorage.removeItem(REMEMBER_KEY)
+  // 仅回显账号名；密码不在本地留存
+  const savedUsername = localStorage.getItem(REMEMBER_KEY)
+  if (savedUsername) {
+    form.username = savedUsername
+    form.remember = true
   }
 })
-
-/** 模拟一次登录请求：校验演示账号密码（错误文案与原型 mock-server 一致） */
-async function mockLogin(username: string, password: string): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 600))
-  if (DEMO_ACCOUNTS[username] !== password) {
-    throw new Error('账号或密码错误')
-  }
-}
 
 async function submit(): Promise<void> {
   if (!formRef.value) return
@@ -105,22 +56,15 @@ async function submit(): Promise<void> {
   } catch {
     return // 字段级红字已提示，无需额外弹层
   }
-  if (form.captcha !== CAPTCHA_TEXT) {
-    ElMessage.error(`验证码错误，演示验证码为 ${CAPTCHA_TEXT}`)
-    shuffle()
-    return
-  }
   loading.value = true
   try {
-    await mockLogin(form.username, form.password)
-    // 写入登录态（角色控制依据，如退款审批仅 ADMIN 可见）；键名与原型 admin_info 一致
-    auth.loginAs(form.username)
-    // TODO(接入服务端): auth store 登录后调用 setToken(token) 完成加密持久化
+    await auth.login({
+      username: form.username.trim(),
+      password: form.password,
+    })
+    // 记住账号：仅存账号名；取消勾选则清除
     if (form.remember) {
-      localStorage.setItem(
-        REMEMBER_KEY,
-        JSON.stringify({ username: form.username, password: form.password }),
-      )
+      localStorage.setItem(REMEMBER_KEY, form.username.trim())
     } else {
       localStorage.removeItem(REMEMBER_KEY)
     }
@@ -128,9 +72,9 @@ async function submit(): Promise<void> {
     // redirect query 只接受站内绝对路径，防开放重定向
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
     router.push(redirect.startsWith('/') ? redirect : '/')
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '登录失败，请稍后重试')
-    shuffle()
+  } catch {
+    // 账号密码错误/停用等提示已由请求层统一弹出（HttpError.message 即后端 message），
+    // 这里无需重复提示，仅结束 loading
   } finally {
     loading.value = false
   }
@@ -175,30 +119,8 @@ async function submit(): Promise<void> {
             @keyup.enter="submit"
           />
         </el-form-item>
-        <el-form-item prop="captcha">
-          <div class="captcha-row">
-            <el-input
-              v-model="form.captcha"
-              placeholder="验证码"
-              :prefix-icon="Key"
-              maxlength="4"
-              @keyup.enter="submit"
-            />
-            <div class="captcha-img" title="演示验证码固定为 1234" @click="shuffle">
-              <span
-                v-for="(ch, i) in captchaChars"
-                :key="i"
-                :style="{
-                  transform: `rotate(${ch.deg}deg) translateY(${ch.dy}px)`,
-                  color: ch.color,
-                }"
-                >{{ ch.text }}</span
-              >
-            </div>
-          </div>
-        </el-form-item>
         <el-form-item>
-          <el-checkbox v-model="form.remember">记住密码</el-checkbox>
+          <el-checkbox v-model="form.remember">记住账号</el-checkbox>
         </el-form-item>
         <el-button class="login-btn" type="primary" size="large" :loading="loading" @click="submit">
           登 录
@@ -206,8 +128,8 @@ async function submit(): Promise<void> {
       </el-form>
 
       <div class="demo-tip">
-        <p>演示账号：admin / admin123（管理员）</p>
-        <p>operator / operator123（操作员）</p>
+        <p>初始管理员：admin / admin123</p>
+        <p>首次登录后请尽快修改默认密码</p>
       </div>
     </div>
 
@@ -284,48 +206,6 @@ async function submit(): Promise<void> {
   margin: 0;
   font-size: 13px;
   color: #909399;
-}
-
-.captcha-row {
-  display: flex;
-  width: 100%;
-  gap: 10px;
-}
-
-.captcha-img {
-  width: 118px;
-  height: 40px;
-  flex-shrink: 0;
-  border-radius: 4px;
-  background: linear-gradient(120deg, #eef2fb, #e6e9f5);
-  border: 1px solid #dcdfe6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  user-select: none;
-  overflow: hidden;
-  position: relative;
-}
-
-.captcha-img::after {
-  content: '';
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  top: 50%;
-  height: 1px;
-  background: rgba(78, 67, 118, 0.35);
-  transform: rotate(-4deg);
-}
-
-.captcha-img span {
-  display: inline-block;
-  font-size: 20px;
-  font-weight: 700;
-  font-style: italic;
-  margin: 0 3px;
-  font-family: Georgia, serif;
 }
 
 .login-btn {

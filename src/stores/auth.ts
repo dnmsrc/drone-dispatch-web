@@ -1,26 +1,30 @@
 // ─────────────────────────────────────────────────────────────
-// 登录态 store（静态版）—— 对应原型 admin/src/store/auth.js
+// 登录态 store —— 对接后端 JWT 鉴权（AuthController /api/auth）
 //
-// 原型走 POST /admin/login 拿 { token, admin }，把 admin 存 localStorage
-// `admin_info`；本页工程暂由 login 视图的演示账号逻辑完成登录，
-// 登录成功后调用 setAdmin() 落同一键名，供角色控制读取（如退款审批
-// 仅 ADMIN 可见）。localStorage 只在 action 内读写（SSR/测试友好），
-// state 初始化时读一次。
-// TODO(接入服务端): mockLogin 换成 POST /admin/login，token 走 setToken()
-// （utils/http AES-GCM 加密 Cookie），admin 信息改由接口返回。
+// 职责划分：
+//   - src/api/auth 负责发请求（login / fetchCurrentUser）；
+//   - 本 store 只维护「当前登录人」状态、token 的加密持久化与登录态恢复。
+//
+// 持久化分两处：
+//   - token：经 AES-256-GCM 加密后存 Cookie（utils/http/token，本地只有密文），
+//     请求拦截器自动解密注入 Authorization: Bearer；
+//   - 用户信息：存 localStorage 的 admin_info（键名沿用原型，供刷新时同步渲染，
+//     真正的鉴权以后端 token 为准；restore 时再用 /auth/me 校正）。
 // ─────────────────────────────────────────────────────────────
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import {
+  fetchCurrentUser,
+  login as loginRequest,
+  type AdminUserInfo,
+  type LoginPayload,
+} from '@/api/auth'
+import { clearToken, setToken } from '@/utils/http'
 
-/** 后台账号（mock-server seed ADMINS 同构） */
-export interface AdminInfo {
-  username: string
-  /** ADMIN 管理员 / OPERATOR 操作员 */
-  role: string
-  name: string
-}
+/** 后台账号信息，结构与后端 AdminUserInfo 对齐 */
+export type AdminInfo = AdminUserInfo
 
-/** 与原型一致的本地存储键（退出登录时一并清除） */
+/** 与原型一致的本地存储键（退出登录 / 401 失效时一并清除） */
 export const ADMIN_INFO_KEY = 'admin_info'
 
 function readStoredAdmin(): AdminInfo | null {
@@ -32,38 +36,60 @@ function readStoredAdmin(): AdminInfo | null {
 }
 
 export const useAuthStore = defineStore('auth', () => {
+  /** 当前登录人；初始读 localStorage，使刷新后首屏即可渲染（再由 restore 校正） */
   const admin = ref<AdminInfo | null>(readStoredAdmin())
 
-  /** 演示账号 → 角色映射（mock-server seed ADMINS 原值） */
-  const DEMO_ADMINS: Record<string, AdminInfo> = {
-    admin: { username: 'admin', role: 'ADMIN', name: '系统管理员' },
-    operator: { username: 'operator', role: 'OPERATOR', name: '调度操作员' },
-  }
+  /** 仅管理员可执行的动作按钮显隐依据（退款审批、档期写操作等均读它） */
+  const isAdmin = computed(() => admin.value?.role === 'ADMIN')
 
-  /** 仅管理员可执行的动作按钮显隐依据（原型 auth.isAdmin 同款） */
-  function isAdmin(): boolean {
-    return admin.value?.role === 'ADMIN'
-  }
+  /** 展示名：优先后端真实姓名，回退登录账号，最后兜底「管理员」 */
+  const displayName = computed(() => admin.value?.realName || admin.value?.username || '管理员')
 
-  /** 登录成功写入登录态（真接口即 POST /admin/login 响应里的 admin 字段） */
+  /** 写入登录人并同步 localStorage */
   function setAdmin(info: AdminInfo): void {
     admin.value = info
     localStorage.setItem(ADMIN_INFO_KEY, JSON.stringify(info))
   }
 
-  /** 按演示账号写登录态；未知账号返回 false（接入服务端后移除） */
-  function loginAs(username: string): boolean {
-    const info = DEMO_ADMINS[username]
-    if (!info) return false
-    setAdmin(info)
-    return true
-  }
-
-  /** 退出登录清空登录态（token 清理由调用方 clearToken() 负责） */
-  function logout(): void {
+  /** 清除登录人（localStorage）；token 的清理由调用方按需处理 */
+  function clearAdmin(): void {
     admin.value = null
     localStorage.removeItem(ADMIN_INFO_KEY)
   }
 
-  return { admin, isAdmin, setAdmin, loginAs, logout }
+  /**
+   * 账号密码登录：调 /auth/login，成功后加密持久化 token、写入登录人。
+   * 错误（账号密码错误、账号停用等）继续向上抛，由登录页自行提示。
+   */
+  async function login(payload: LoginPayload): Promise<void> {
+    const result = await loginRequest(payload)
+    await setToken(result.token)
+    setAdmin(result.user)
+  }
+
+  /**
+   * 刷新页面后恢复登录态：凭持久化 token 调 /auth/me 校正当前用户。
+   * 无本地用户信息时直接判定未登录，不发请求；
+   * token 失效会抛 401（请求层已清 token），这里再清空残留用户信息。
+   * @returns 是否成功恢复登录态
+   */
+  async function restore(): Promise<boolean> {
+    if (!readStoredAdmin()) return false
+    try {
+      const info = await fetchCurrentUser()
+      setAdmin(info)
+      return true
+    } catch {
+      clearAdmin()
+      return false
+    }
+  }
+
+  /** 退出登录：后端暂无登出接口（JWT 无状态），前端清除本地 token 与登录人即可 */
+  function logout(): void {
+    clearToken()
+    clearAdmin()
+  }
+
+  return { admin, isAdmin, displayName, setAdmin, clearAdmin, login, restore, logout }
 })

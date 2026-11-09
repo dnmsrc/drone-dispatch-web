@@ -25,7 +25,7 @@ import type { RefundRow } from './types'
 
 const auth = useAuthStore()
 /** 审批权限（原型 auth.isAdmin：仅 ADMIN 可审批，OPERATOR 见灰字提示） */
-const canAudit = computed(() => auth.isAdmin())
+const canAudit = computed(() => auth.isAdmin)
 
 /* ═══ 查询状态（原型无搜索区、无分页，tab 即筛选）═══ */
 const tab = ref('PENDING')

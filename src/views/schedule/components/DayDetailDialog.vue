@@ -109,7 +109,7 @@ function onSaveSlots(): void {
         <el-descriptions-item label="当日订单数">{{ cell.booked }} 单</el-descriptions-item>
         <el-descriptions-item label="可接单时段">
           <!-- 管理员只给一行汇总，具体条目在下方编辑区（同一份数据不展示两遍） -->
-          <template v-if="auth.isAdmin()">
+          <template v-if="auth.isAdmin">
             <span v-if="cell.slots.length" class="sum-line">
               {{ cell.slots.length }} 段<span v-if="bookedSlotCount"
                 >（{{ bookedSlotCount }} 已订）</span
@@ -141,7 +141,7 @@ function onSaveSlots(): void {
       </el-descriptions>
 
       <!-- 管理员编辑区 -->
-      <div v-if="auth.isAdmin()" class="day-ops">
+      <div v-if="auth.isAdmin" class="day-ops">
         <div v-if="cell.closed" class="slot-closed-tip">
           <span class="sct-badge">休</span>
           该日已设为休整日：全部时段停接。要配置可接单时段，请先点右下角「恢复营业」。
@@ -201,7 +201,7 @@ function onSaveSlots(): void {
 
     <template #footer>
       <el-button @click="visible = false">关闭</el-button>
-      <template v-if="auth.isAdmin() && cell">
+      <template v-if="auth.isAdmin && cell">
         <!-- 已有订单的日子不能停工：置灰并说明原因，后端同样会拒 -->
         <el-tooltip
           v-if="!cell.closed"

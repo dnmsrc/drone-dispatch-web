@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { clearToken } from '@/utils/http'
 import { useAuthStore } from '@/stores/auth'
 
 defineProps<{
@@ -18,8 +17,8 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 
-// 登录态来自 stores/auth（登录成功写入；直连开发无登录态时兜底「管理员」）
-const userName = computed(() => auth.admin?.name || '管理员')
+// 登录态来自 stores/auth（登录成功写入；未登录会被路由守卫拦在登录页，这里仅做兜底展示）
+const userName = computed(() => auth.displayName)
 /** 头像首字符：中文取首字、英文取大写首字母 */
 const avatarChar = computed(() => {
   const n = userName.value
@@ -45,8 +44,7 @@ async function onCommand(cmd: string) {
       cancelButtonText: '取消',
       type: 'warning',
     })
-    // 清除加密存储的 token 密文与登录态并回到登录页；服务端接入后此处补调登出接口
-    clearToken()
+    // JWT 无状态、后端暂无登出接口：store.logout 清除加密 token 密文与本地登录人后回登录页
     auth.logout()
     router.push('/login')
     ElMessage.success('已退出登录')
