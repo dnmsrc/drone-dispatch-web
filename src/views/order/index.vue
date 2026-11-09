@@ -12,6 +12,7 @@
 // TODO(server): 接 /admin/orders 系列接口后仅替换数据调用，UI 与交互不动。
 // ─────────────────────────────────────────────────────────────
 import { computed, h, onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import StatusTag from '@/components/StatusTag.vue'
 import { ProSearch, ProTable, twoLineCell } from '@/components/pro'
 import type { FormFieldConfig, TableActions, TableColumn, TablePagination } from '@/components/pro'
@@ -21,11 +22,17 @@ import { queryOrders } from './mock'
 import OrderDetailDrawer from './components/OrderDetailDrawer.vue'
 import type { OrderRow } from './types'
 
-/* ═══ 查询状态 ═══ */
+/* ═══ 查询状态 ═══
+   route.query.keyword：媒体库「查看订单」等外部入口带订单号跳进来时预填关键词 */
+const route = useRoute()
 const loading = ref(false)
 const rows = ref<OrderRow[]>([])
 const total = ref(0)
-const query = reactive<Record<string, unknown>>({ keyword: '', status: '', dateRange: [] })
+const query = reactive<Record<string, unknown>>({
+  keyword: typeof route.query.keyword === 'string' ? route.query.keyword : '',
+  status: '',
+  dateRange: [],
+})
 const page = ref(1)
 const size = ref(10)
 

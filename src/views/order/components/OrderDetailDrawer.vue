@@ -227,10 +227,21 @@ defineExpose({ open })
       </div>
 
       <template v-if="detail.paidAt">
-        <h4 class="section-title">支付信息</h4>
+        <h4 class="section-title">
+          支付信息
+          <el-tag
+            v-if="detail.status === 'PARTIALLY_PAID'"
+            type="warning"
+            size="small"
+            effect="plain"
+            class="title-flag"
+          >
+            分期 · 预付款已到、尾款待付
+          </el-tag>
+        </h4>
         <el-descriptions :column="2" border size="small">
           <el-descriptions-item label="支付方式">
-            {{ PAY_CHANNEL_LABELS[detail.payChannel ?? ''] || detail.payChannel }}
+            {{ PAY_CHANNEL_LABELS[detail.payChannel ?? ''] || detail.payChannel || '—' }}
           </el-descriptions-item>
           <el-descriptions-item label="支付时间">{{ fmtTime(detail.paidAt) }}</el-descriptions-item>
           <el-descriptions-item label="交易流水号" :span="2">{{
@@ -310,7 +321,7 @@ defineExpose({ open })
       </el-timeline>
     </div>
 
-    <template #footer v-if="detail">
+    <template v-if="detail" #footer>
       <div class="drawer-footer">
         <template v-if="detail.status === 'PENDING_ACCEPT'">
           <el-button type="primary" :loading="acting" @click="doAccept">接单</el-button>
@@ -341,6 +352,12 @@ defineExpose({ open })
 <style scoped>
 .drawer-body {
   padding-bottom: 8px;
+}
+
+/* 标题旁的状态标记（如分期预付款提示） */
+.title-flag {
+  margin-left: 8px;
+  vertical-align: middle;
 }
 
 .drawer-footer {

@@ -32,6 +32,21 @@ export const menuRoutes: RouteRecordRaw[] = [
     meta: { title: '订单管理', icon: 'Tickets' },
   },
   {
+    path: 'contract/list',
+    component: () => import('@/views/contract/index.vue'),
+    meta: { title: '合同管理', icon: 'Document' },
+  },
+  {
+    path: 'payment/list',
+    component: () => import('@/views/payment/index.vue'),
+    meta: { title: '支付流水', icon: 'Money' },
+  },
+  {
+    path: 'media/list',
+    component: () => import('@/views/media/index.vue'),
+    meta: { title: '媒体库', icon: 'Picture' },
+  },
+  {
     path: 'refund/list',
     component: () => import('@/views/refund/index.vue'),
     meta: { title: '退款管理', icon: 'RefreshLeft' },
@@ -55,6 +70,16 @@ export const menuRoutes: RouteRecordRaw[] = [
     path: 'venue/list',
     component: () => import('@/views/venue/index.vue'),
     meta: { title: '场地管理', icon: 'MapLocation' },
+  },
+  {
+    path: 'admin/list',
+    component: () => import('@/views/admin/index.vue'),
+    meta: { title: '账号管理', icon: 'Avatar' },
+  },
+  {
+    path: 'bank/list',
+    component: () => import('@/views/bank/index.vue'),
+    meta: { title: '收款账户', icon: 'CreditCard' },
   },
   {
     path: 'system/config',
