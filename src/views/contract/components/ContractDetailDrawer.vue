@@ -10,6 +10,7 @@
 import { computed, ref } from 'vue'
 import StatusTag from '@/components/StatusTag.vue'
 import {
+  CONTRACT_RESPONSIBILITY_MAP,
   CONTRACT_SIGN_MAP,
   ID_TYPE_LABELS,
   fmtDate,
@@ -185,6 +186,53 @@ function scheduleTagType(s: PaymentSchedule['status']) {
         <el-descriptions-item v-if="detail.signStatus === 'VOID'" label="作废原因" :span="2">
           <span class="void-reason">{{ detail.voidReason }}</span>
         </el-descriptions-item>
+
+        <!-- 终止结算留痕（TERMINATED） -->
+        <template v-if="detail.signStatus === 'TERMINATED'">
+          <el-descriptions-item label="终止责任方">
+            <StatusTag
+              :status="detail.terminateResponsibility"
+              :map="CONTRACT_RESPONSIBILITY_MAP"
+              size="small"
+              shape="rect"
+            />
+          </el-descriptions-item>
+          <el-descriptions-item label="终止时间">{{
+            fmtTime(detail.terminatedAt)
+          }}</el-descriptions-item>
+          <el-descriptions-item label="终止原因" :span="2">
+            <span class="void-reason">{{ detail.terminateReason }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="关联退款单" :span="2">
+            <span class="refund-no">{{ detail.refundNo || '—' }}</span>
+            <span class="cell-sub" style="margin-left: 8px">可在「退款管理」检索并审批</span>
+          </el-descriptions-item>
+        </template>
+
+        <!-- 改期留痕（RESCHEDULED，合同继续有效） -->
+        <template v-if="detail.signStatus === 'RESCHEDULED'">
+          <el-descriptions-item label="改期责任方">
+            <StatusTag
+              :status="detail.rescheduleResponsibility"
+              :map="CONTRACT_RESPONSIBILITY_MAP"
+              size="small"
+              shape="rect"
+            />
+          </el-descriptions-item>
+          <el-descriptions-item label="改期时间">{{
+            fmtTime(detail.rescheduledAt)
+          }}</el-descriptions-item>
+          <el-descriptions-item label="表演日期变更" :span="2">
+            <span class="date-change">
+              {{ fmtDate(detail.originalPerformDate) }}
+              <span class="arrow">→</span>
+              <span class="amount-text">{{ fmtDate(detail.rescheduledPerformDate) }}</span>
+            </span>
+          </el-descriptions-item>
+          <el-descriptions-item label="改期原因" :span="2">
+            <span class="reschedule-reason">{{ detail.rescheduleReason }}</span>
+          </el-descriptions-item>
+        </template>
       </el-descriptions>
     </div>
   </el-drawer>
@@ -209,5 +257,24 @@ function scheduleTagType(s: PaymentSchedule['status']) {
 
 .void-reason {
   color: var(--app-color-danger);
+}
+
+.refund-no {
+  font-weight: 600;
+  color: var(--app-color-primary);
+}
+
+.date-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.date-change .arrow {
+  color: var(--app-text-secondary);
+}
+
+.reschedule-reason {
+  color: var(--app-text-regular);
 }
 </style>

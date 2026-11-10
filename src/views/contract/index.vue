@@ -3,13 +3,15 @@
 // 电子合同（对齐后端 contracts + contract_payment_schedule 两表）
 //
 //   - 搜索栏 → ProSearch（关键词 / 签署状态），表格 → ProTable + 分页 + autoFit
-//   - 详情 → ContractDetailDrawer（含分期付款计划表与签署存档）
-//   - 状态机动作按签署状态显隐：
+//   - 详情 → ContractDetailDrawer（含分期付款计划表与签署/终止/改期留痕）
+//   - 状态机动作按「签署状态 × 是否收款 × 履约进度 × 角色」显隐（闸门见 termination.availableActions）：
 //       DRAFT 草稿      → 提交签署（confirm）
 //       PENDING_SIGN    → 上传签署件 PDF（弹窗）→ 已签署
-//       SIGNED 已签署   → 作废（弹窗，原因必填）
-//       VOID 已作废     → 仅可查看
-//   - 业务校验集中在 mock.ts，页面只把抛出的错误用 ElMessage 呈现
+//       生效·零付款      → 作废（无资金，原因必填）
+//       生效·已收款      → 终止（管理员，结算弹窗，联动生成退款单）
+//       生效·未到现场    → 改期（顺延日期、不退款）
+//       VOID/TERMINATED → 仅可查看；IN_SERVICE 后仅管理员可兜底强制终止
+//   - 业务校验集中在 mock.ts / termination.ts，页面只把抛出的错误用 ElMessage 呈现
 // TODO(server): 接 /admin/contracts 系列接口后仅替换 mock.ts，UI 与交互不动。
 // ─────────────────────────────────────────────────────────────
 import { computed, h, onMounted, reactive, ref } from 'vue'
@@ -23,10 +25,26 @@ import type {
   TableColumn,
   TablePagination,
 } from '@/components/pro'
+import { useAuthStore } from '@/stores/auth'
 import { CONTRACT_SIGN_MAP, fmtDate, fmtMoney, fmtTime } from '@/utils/format'
 import ContractDetailDrawer from './components/ContractDetailDrawer.vue'
-import { actSubmitSign, actUploadPdf, actVoid, paymentSummary, queryContracts } from './mock'
+import { terminateDialog } from './components/terminate.dialog'
+import { rescheduleDialog } from './components/reschedule.dialog'
+import {
+  actReschedule,
+  actSubmitSign,
+  actTerminate,
+  actUploadPdf,
+  actVoid,
+  getAvailableActions,
+  paymentSummary,
+  queryContracts,
+} from './mock'
 import type { ContractRow, UploadPdfForm, VoidContractForm } from './types'
+
+const auth = useAuthStore()
+/** 终止涉及退款决策，仅 ADMIN 可见终止入口（与退款审批权限口径一致） */
+const isAdmin = computed(() => auth.isAdmin)
 
 /* ═══ 查询状态 ═══ */
 const loading = ref(false)
@@ -142,7 +160,37 @@ async function openVoid(row: ContractRow): Promise<void> {
   if (result.action !== DialogAction.Confirm || !result.data) return
   try {
     actVoid(row.id, (result.data as VoidContractForm).voidReason)
-    ElMessage.success('合同已作废')
+    ElMessage.success('合同已作废（无资金结算，关联订单已置为已取消）')
+    void load()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+/* ═══ 终止结算弹窗（仅管理员；按责任方试算并联动退款单）═══ */
+async function openTerminate(row: ContractRow): Promise<void> {
+  if (!isAdmin.value) {
+    ElMessage.warning('仅管理员可终止已生效合同')
+    return
+  }
+  const result = await terminateDialog.open({ contract: row })
+  if (result.action !== DialogAction.Confirm || !result.data) return
+  try {
+    actTerminate(row.id, result.data, isAdmin.value)
+    ElMessage.success('合同已终止，已生成待审批退款单（退款管理页可处理）')
+    void load()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+/* ═══ 改期弹窗（顺延表演日期，款项不退还、节点继续有效）═══ */
+async function openReschedule(row: ContractRow): Promise<void> {
+  const result = await rescheduleDialog.open({ contract: row })
+  if (result.action !== DialogAction.Confirm || !result.data) return
+  try {
+    actReschedule(row.id, result.data)
+    ElMessage.success('已改期，付款节点继续有效，订单表演日期同步更新')
     void load()
   } catch (e) {
     ElMessage.error((e as Error).message)
@@ -227,9 +275,13 @@ const columns: TableColumn[] = [
   },
 ]
 
-/* ═══ 操作列：按签署状态显隐 ═══ */
+/* ═══ 操作列：按「状态 × 收款 × 履约 × 角色」闸门显隐（纯函数 termination.availableActions）═══ */
+function gateOf(row: ContractRow) {
+  return getAvailableActions(row.id, isAdmin.value)
+}
+
 const actions: TableActions = {
-  width: 200,
+  width: 230,
   fixed: 'right',
   max: 3,
   buttons: [
@@ -256,11 +308,28 @@ const actions: TableActions = {
       onClick: (row) => void openUpload(row as ContractRow),
     },
     {
+      // 仅未生效或生效但零付款的合同可作废（无资金结算）
       text: '作废',
-      type: 'danger',
+      type: 'info',
       icon: 'CircleClose',
-      show: (row) => (row as ContractRow).signStatus === 'SIGNED',
+      show: (row) => gateOf(row as ContractRow).canVoid,
       onClick: (row) => void openVoid(row as ContractRow),
+    },
+    {
+      // 生效合同顺延表演日期，款项不退还、节点继续有效
+      text: '改期',
+      type: 'primary',
+      icon: 'Calendar',
+      show: (row) => gateOf(row as ContractRow).canReschedule,
+      onClick: (row) => void openReschedule(row as ContractRow),
+    },
+    {
+      // 已收款/执行中合同提前结束，走结算并联动退款单（仅 ADMIN；执行中为兜底强制终止）
+      text: '终止',
+      type: 'danger',
+      icon: 'SwitchButton',
+      show: (row) => gateOf(row as ContractRow).canTerminate && isAdmin.value,
+      onClick: (row) => void openTerminate(row as ContractRow),
     },
   ],
 }
