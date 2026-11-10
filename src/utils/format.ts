@@ -168,12 +168,28 @@ export function venueSub(v: { type?: string; address?: string } | null | undefin
  * payments / company_bank_accounts / order_media / admin_users）
  * ════════════════════════════════════════════════════════════ */
 
-/** 合同签署状态字典（contracts.sign_status：草稿灰/待签橙/已签绿/作废深灰） */
+/** 合同签署状态字典（contracts.sign_status：草稿灰/待签橙/已签绿/作废深灰/终止红/改期蓝） */
 export const CONTRACT_SIGN_MAP: Record<string, StatusConf> = {
   DRAFT: { text: '草稿', type: 'info' },
   PENDING_SIGN: { text: '待签署', type: 'warning' },
   SIGNED: { text: '已签署', type: 'success' },
   VOID: { text: '已作废', color: '#4B5563' },
+  TERMINATED: { text: '已终止', type: 'danger' },
+  RESCHEDULED: { text: '已改期', type: 'primary' },
+}
+
+/** 合同终止/改期责任方字典（决定退款比例与是否扣费） */
+export const CONTRACT_RESPONSIBILITY_MAP: Record<string, StatusConf> = {
+  CUSTOMER: { text: '客户原因', type: 'warning' },
+  VENDOR: { text: '我方原因', type: 'danger' },
+}
+
+/** 改期原因类型字典（与 H5 合同条款 key 对齐） */
+export const RESCHEDULE_REASON_MAP: Record<string, StatusConf> = {
+  WEATHER: { text: '天气/不可抗力', type: 'warning' },
+  APPROVAL: { text: '空域审批', type: 'danger' },
+  VENUE: { text: '场地原因', type: 'primary' },
+  OTHER: { text: '其它', type: 'info' },
 }
 
 /** 合同付款计划期次状态字典（contract_payment_schedule.status） */

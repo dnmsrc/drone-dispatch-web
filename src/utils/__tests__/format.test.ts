@@ -195,8 +195,15 @@ describe('format · 合同与分期域字典结构完整性', () => {
     }
   })
 
-  it('合同签署四态齐全（DRAFT/PENDING_SIGN/SIGNED/VOID）', () => {
-    expect(Object.keys(CONTRACT_SIGN_MAP)).toEqual(['DRAFT', 'PENDING_SIGN', 'SIGNED', 'VOID'])
+  it('合同签署六态齐全（草稿/待签/已签/作废/终止/改期）', () => {
+    expect(Object.keys(CONTRACT_SIGN_MAP)).toEqual([
+      'DRAFT',
+      'PENDING_SIGN',
+      'SIGNED',
+      'VOID',
+      'TERMINATED',
+      'RESCHEDULED',
+    ])
   })
 
   it('付款期次四态齐全（PENDING/PARTIAL/PAID/OVERDUE）', () => {
