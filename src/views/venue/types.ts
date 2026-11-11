@@ -35,3 +35,24 @@ export interface VenueForm {
   lat: number
   enabled: boolean
 }
+
+/**
+ * 地图选点组件（AMapPicker）的 v-model 值。
+ * 坐标统一为 WGS-84（高德 GCJ-02 在组件内转换后输出），与落库口径一致。
+ */
+export interface VenueLocation {
+  /** 场地名称（POI 选中时回填，可再人工修改） */
+  name: string
+  /** 详细地址（逆地理 / POI 回填，可再人工修改） */
+  address: string
+  /** 经度 WGS-84（-180 ~ 180，最多 6 位小数） */
+  lng: number
+  /** 纬度 WGS-84（-90 ~ 90，最多 6 位小数） */
+  lat: number
+}
+
+/** 场地编辑弹窗 open 入参：row 为空表示新增，否则为编辑回填 */
+export interface VenueEditParams {
+  /** 编辑时传入的现有场地；新增时为 null / undefined */
+  row?: VenueRow | null
+}

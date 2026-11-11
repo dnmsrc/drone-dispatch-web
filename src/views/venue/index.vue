@@ -1,23 +1,24 @@
 <script setup lang="ts">
 // ─────────────────────────────────────────────────────────────
-// 场地管理（UI 完全复刻原型 admin/src/views/venue/list.vue）
+// 场地管理（UI 复刻原型 admin/src/views/venue/list.vue，录入方式升级为地图选点）
 //
 // 正式版规范落地：
 //   - 散装 el-table → ProTable 配置式（columns + actions + auto-fit）
-//   - 新增/编辑 el-dialog → 公共 createFormDialog 配置式表单弹窗，
-//     open() 传初始值区分新增/编辑，await 结果用 DialogAction 判断
-//   - 删除确认 → 操作列 confirm 二次确认（内部走 ElMessageBox，外观与全站一致）
+//   - 新增/编辑 → 自定义 VenueEditDialog（wrapDialog 命令式句柄），
+//     内部 AMapPicker 支持高德地名搜索 + 地图点选，坐标统一 WGS-84；
+//     未配置 Key / 加载失败时自动降级手动经纬度输入
+//   - 删除确认 → 操作列 confirm 二次确认（内部走 ElMessageBox）
 //   - 数据走 ./mock.ts 的内存 CRUD（种子对齐 seed.js VENUES），刷新回滚
-// 经纬度用 input-number（3 位小数、step 0.001、范围限制），启用状态用 switch。
 // TODO(server): 接 /admin/venues CRUD 后仅替换 mock.ts，本页与弹窗不改名。
 // ─────────────────────────────────────────────────────────────
 import { h, onMounted, ref } from 'vue'
 import { ElMessage, ElTag } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { createFormDialog, DialogAction, ProTable } from '@/components/pro'
-import type { FormFieldConfig, TableActions, TableColumn } from '@/components/pro'
+import { DialogAction, ProTable } from '@/components/pro'
+import type { TableActions, TableColumn } from '@/components/pro'
 import { createVenue, deleteVenue, queryVenues, updateVenue } from './mock'
-import type { VenueForm, VenueRow } from './types'
+import { venueEditDialog } from './components/venue-edit.dialog'
+import type { VenueRow } from './types'
 
 /* ═══ 列表状态（原型无搜索/分页，一次加载全量）═══ */
 const loading = ref(false)
@@ -32,77 +33,15 @@ async function load(): Promise<void> {
 
 onMounted(() => void load())
 
-/* ═══ 新增/编辑表单弹窗（替代原型 el-dialog + 手工 formRef 校验）═══ */
-// 新增默认坐标取原型 form 初值（杭州 120.2 / 30.25），编辑时由 open 入参覆盖
-const DEFAULT_LNG = 120.2
-const DEFAULT_LAT = 30.25
-
-const venueFields: FormFieldConfig[] = [
-  {
-    prop: 'name',
-    label: '场地名称',
-    placeholder: '例如：滨江世纪广场',
-    required: true,
-    rules: [{ required: true, message: '请填写场地名称', trigger: 'blur' }],
-    props: { maxlength: 30 },
-  },
-  {
-    prop: 'address',
-    label: '详细地址',
-    placeholder: '例如：杭州市滨江区江南大道 100 号',
-    required: true,
-    rules: [{ required: true, message: '请填写详细地址', trigger: 'blur' }],
-    props: { maxlength: 60 },
-  },
-  {
-    prop: 'lng',
-    label: '经度',
-    control: 'input-number',
-    // 3 位小数、步进 0.001、经度范围 -180~180（对齐原型 el-input-number）
-    props: { precision: 3, step: 0.001, min: -180, max: 180, controlsPosition: 'right' },
-  },
-  {
-    prop: 'lat',
-    label: '纬度',
-    control: 'input-number',
-    // 纬度范围 -90~90
-    props: { precision: 3, step: 0.001, min: -90, max: 90, controlsPosition: 'right' },
-  },
-  {
-    prop: 'enabled',
-    label: '启用状态',
-    control: 'switch',
-    defaultValue: true,
-    props: { activeText: '启用', inactiveText: '停用' },
-  },
-]
-
-const venueDialog = createFormDialog<VenueForm>({
-  name: 'venue-form',
-  width: 480,
-  labelWidth: '90px',
-  defaultSpan: 24,
-  okText: '保存',
-  fields: venueFields,
-})
-
 /** 当前编辑的场地 id（空串表示新增） */
 const editingId = ref('')
 
 async function openForm(row?: VenueRow): Promise<void> {
   editingId.value = row?.id ?? ''
-  const result = await venueDialog.open({
-    title: row ? '编辑场地' : '新增场地',
-    // open 入参覆盖默认 model；新增给空白 + 默认坐标/启用，编辑回填该行
-    name: row?.name ?? '',
-    address: row?.address ?? '',
-    lng: row?.lng ?? DEFAULT_LNG,
-    lat: row?.lat ?? DEFAULT_LAT,
-    enabled: row?.enabled ?? true,
-  })
+  const result = await venueEditDialog.open({ row: row ?? null })
   if (result.action !== DialogAction.Confirm || !result.data) return
 
-  const form = result.data as VenueForm
+  const form = result.data
   if (editingId.value) {
     updateVenue(editingId.value, form)
     ElMessage.success('场地已保存')
@@ -113,7 +52,7 @@ async function openForm(row?: VenueRow): Promise<void> {
   void load()
 }
 
-/* ═══ 表格列（配置式；列宽逐字对齐原型）═══ */
+/* ═══ 表格列（配置式）═══ */
 const columns: TableColumn[] = [
   {
     prop: 'name',
@@ -129,8 +68,14 @@ const columns: TableColumn[] = [
     render: ({ row }) =>
       h('span', { class: 'ellipsis', title: (row as VenueRow).address }, (row as VenueRow).address),
   },
-  { prop: 'lng', label: '经度', width: 110 },
-  { prop: 'lat', label: '纬度', width: 110 },
+  {
+    label: '坐标（WGS-84）',
+    width: 200,
+    render: ({ row }) => {
+      const v = row as VenueRow
+      return h('span', { class: 'cell-sub' }, `${v.lng.toFixed(6)}, ${v.lat.toFixed(6)}`)
+    },
+  },
   {
     label: '启用状态',
     width: 100,
@@ -174,7 +119,7 @@ const actions: TableActions = {
   <div class="page">
     <div class="card">
       <h3 class="card-title">
-        场地管理<span class="sub">预设表演场地，用户下单时可直接选择</span>
+        场地管理<span class="sub">预设表演场地，支持高德地图选点，用户下单时可直接选择</span>
         <el-button type="primary" :icon="Plus" @click="openForm()">新增场地</el-button>
       </h3>
 
