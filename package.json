@@ -19,6 +19,7 @@
     "check": "npm run type-check && npm run lint:check && npm run format:check && npm run test"
   },
   "dependencies": {
+    "@amap/amap-jsapi-loader": "^1.0.1",
     "@element-plus/icons-vue": "^2.3.2",
     "axios": "^1.21.0",
     "echarts": "^6.1.0",

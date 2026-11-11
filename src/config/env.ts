@@ -23,6 +23,25 @@ function asNumber(value: string | undefined, fallback: number): number {
   return Number.isFinite(n) ? n : fallback
 }
 
+/** 经纬度对（WGS-84，场地坐标统一按此坐标系存储） */
+export interface LngLat {
+  lng: number
+  lat: number
+}
+
+/**
+ * 解析「经度,纬度」字符串为经纬度对象；非法时回退到传入的兜底值。
+ * 用于解析高德默认中心点等 env 配置。
+ */
+function asLngLat(value: string | undefined, fallback: LngLat): LngLat {
+  if (!value) return fallback
+  const [lngRaw, latRaw] = value.split(',')
+  const lng = Number(lngRaw)
+  const lat = Number(latRaw)
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return fallback
+  return { lng, lat }
+}
+
 export const env = {
   /** 应用品牌名 */
   appName: import.meta.env.VITE_APP_NAME || '无人机 SkyShow',
@@ -36,4 +55,18 @@ export const env = {
   apiTimeout: asNumber(import.meta.env.VITE_API_TIMEOUT, 15000),
   /** 是否开启组件测试场 */
   enableDevPanel: asBool(import.meta.env.VITE_ENABLE_DEV_PANEL, false),
+  /** 高德 Web 端 JS API Key（空串表示未配置，地图组件降级为手动录入） */
+  amapKey: import.meta.env.VITE_AMAP_KEY || '',
+  /** 高德安全密钥 jscode（2021-12 后新建 Key 需配合使用；可空） */
+  amapSecurityCode: import.meta.env.VITE_AMAP_SECURITY_CODE || '',
+  /** 高德选点默认中心（WGS-84，组件内部按需转 GCJ-02 再喂给地图） */
+  amapDefaultCenter: asLngLat(import.meta.env.VITE_AMAP_DEFAULT_CENTER, {
+    lng: 120.2,
+    lat: 30.25,
+  }),
 } as const
+
+/** 高德地图是否可用：仅当配置了 JS API Key 时才尝试加载，否则走手动降级 */
+export function isAmapEnabled(): boolean {
+  return env.amapKey.trim().length > 0
+}
