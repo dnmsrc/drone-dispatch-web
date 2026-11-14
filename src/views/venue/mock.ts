@@ -2,13 +2,12 @@
 // 场地管理 · 静态数据源（内存 CRUD，刷新页面即回滚到种子）
 //
 // 种子逐字搬运 mock-server seed.js 的 VENUES（v1…v5，默认全启用）。
-// 用可变数组 + 一组查询/增删改函数模拟 /admin/venues 的完整 CRUD，
+// 用可变数组 + 一组查询/改删函数模拟 /admin/venues 的改删，
 // 口径对齐 server.js：
-//   - 名称 / 地址必填，缺失抛错（页面表单已前置校验，这里做数据源兜底）
-//   - 新增 id 取 'v' + 时间戳，经纬度 Number() 兜底，enabled !== false 即启用
 //   - 编辑按字段合并，未传项保持原值；删除按 id 定位，找不到抛错
-// 接真接口后只把各函数体换成 request 调用，函数签名与页面不改名。
-// TODO(server): 接 /admin/venues 后替换本文件实现。
+// 接真接口进度：列表 GET、新增 POST 已切到 @/api/venue，本文件不再提供新增；
+//   编辑/删除后端接口尚未落地，仍在此用内存 store 过渡（刷新即回滚到后端数据）。
+// TODO(server): 后端补齐编辑/删除接口后移除本文件，页面统一走 @/api/venue。
 // ─────────────────────────────────────────────────────────────
 import type { VenueForm, VenueRow } from './types'
 
@@ -61,26 +60,21 @@ const venueStore: { rows: VenueRow[] } = {
   rows: JSON.parse(JSON.stringify(SEED_VENUES)) as VenueRow[],
 }
 
+/**
+ * 用后端真实列表初始化本地 store（列表已接 GET /api/venues）。
+ *
+ * 后端目前只有读接口和新增接口、没有编辑/删除接口：为让真实场地在本页也能走通
+ * 编辑/删除交互，每次拉到后端列表后用它覆盖本地 store，使后续 mock 写操作能按
+ * 真实 id 命中。注意这些写操作仍只改内存、不持久化（刷新即回到后端数据），等后端
+ * 编辑/删除接口落地后移除。
+ */
+export function seedVenuesFromRemote(rows: VenueRow[]): void {
+  venueStore.rows = JSON.parse(JSON.stringify(rows)) as VenueRow[]
+}
+
 /** 列表查询（等价 GET /admin/venues，返回副本防止外部直接改 store） */
 export function queryVenues(): VenueRow[] {
   return JSON.parse(JSON.stringify(venueStore.rows)) as VenueRow[]
-}
-
-/** 新增（等价 POST /admin/venues）：返回新场地 */
-export function createVenue(form: VenueForm): VenueRow {
-  if (!form.name?.trim() || !form.address?.trim()) {
-    throw new Error('请填写场地名称与地址')
-  }
-  const venue: VenueRow = {
-    id: `v${Date.now()}`,
-    name: form.name,
-    address: form.address,
-    lng: Number(form.lng) || 0,
-    lat: Number(form.lat) || 0,
-    enabled: form.enabled !== false,
-  }
-  venueStore.rows.push(venue)
-  return { ...venue }
 }
 
 /** 编辑（等价 PUT /admin/venues/:id）：按字段合并，返回更新后的场地 */
