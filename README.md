@@ -8,7 +8,11 @@
 - 原型基线：`drone-dispatch-prototype/admin`（Vue3 + Vite + Element Plus + Pinia + ECharts，若伊 RuoYi 风格）
 - 负责：登录鉴权、看板、订单流转（接单/拒单/开始/完成）、退款审批、档期与配置、字典、用户与评价、场地
 
-**当前状态：主题包 + 基础控件重写 + 布局框架 + 配置式公共组件（表格 / 表单 / 搜索）+ 组件测试场已就绪，可启动、可构建；11 个业务页面为占位组件，待逐页从原型迁移。**
+**当前状态：主题包 + 基础控件重写 + 布局框架 + 配置式公共组件（表格 / 表单 / 搜索 / 弹窗）+ 组件测试场已就绪；17 个业务页面已全部从原型迁移落地（路由已无占位组件），可启动、可构建。axios 请求封装（`src/utils/http`）与登录接口（`src/api/auth.ts`）已接通真实后端，其余业务页面当前仍用各目录下的 `mock.ts` 提供本地数据，待服务端接口就绪后逐页切换。**
+
+## 已落地业务页面（17 个）
+
+首页看板、咨询受理、订单管理、电子合同管理（含分期付款 / 终止 / 改期）、支付流水、媒体库、退款管理、档期管理、用户管理、评价管理、场地管理（高德地图选点 + GCJ-02→WGS-84 转换）、账号管理、收款账户、业务配置、字典管理、登录、个人中心。业务规则纯函数（计价 / 退款 / 合同分期与终止 / 档期时段 / 坐标转换 / 加解密等）均配有 Vitest 单测，当前共 122 个用例。
 
 ## 快速开始
 
@@ -21,8 +25,13 @@ npm run dev     # 打开 http://localhost:8091
 其他命令：
 
 ```bash
-npm run build     # 类型检查（vue-tsc）+ 打包到 dist/
-npm run preview   # 预览打包产物
+npm run build       # 类型检查（vue-tsc）+ 打包到 dist/
+npm run preview     # 预览打包产物
+npm run check       # 提交前四道门禁：type-check + lint:check + format:check + test
+npm run type-check  # 仅 vue-tsc 类型检查
+npm run lint        # ESLint --fix（只查不改用 lint:check）
+npm run format      # Prettier --write（只查不改用 format:check）
+npm run test        # Vitest 单测（当前 122 例，业务纯函数 + 组件辅助）
 ```
 
 开发期附加入口：**组件测试场** <http://localhost:8091/dev/playground>（仅开发环境存在，见下文）。
@@ -45,7 +54,8 @@ drone-dispatch-web/
     │   └── PagePlaceholder.vue
     ├── stores/         # pinia（tags-view 多页签状态）
     ├── config/         # 品牌常量（静态，后续改为接口拉取）
-    ├── views/          # 业务页面（当前 11 个占位）+ dev/ 组件测试场 ★
+    ├── views/          # 17 个业务页面（已落地，数据暂走本地 mock.ts）+ dev/ 组件测试场 ★
+    ├── api/            # 后端接口封装（当前 auth.ts 已接通登录；http 封装在 utils/http）
     └── styles/         # 公共主题包 + 全局样式（含 theme/pro/ 公共组件样式）★
 ```
 
