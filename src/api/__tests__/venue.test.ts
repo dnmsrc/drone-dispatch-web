@@ -1,18 +1,20 @@
 // ─────────────────────────────────────────────────────────────
-// 场地接口适配层单测（src/api/venue.ts 的 toVenueRow / toCreatePayload）
+// 场地接口适配层单测（src/api/venue.ts 的 toVenueRow / toWritePayload / toCreatePayload）
 //
 // 重点锁定后端 DTO → 前端 VenueRow 的契约差异，防止后端字段口径变更时静默出错：
 //   - id：number → string
 //   - enabled：1/0 → true/false
 //   - lng/lat：null / 非有限值 → 0 兜底，保证页面 toFixed 不炸
 //   - 审计字段不外泄到 VenueRow
-// 以及新增提交体 VenueForm → VenueCreatePayload 的口径：
-//   - 只发 name/address/lng/lat 四字段，剔除 enabled（后端新增固定启用）
+// 以及写接口提交体 VenueForm → VenueWritePayload（POST 新增 / PUT 编辑共用）的口径：
+//   - 只发 name/address/lng/lat 四字段，剔除 enabled
+//     （新增后端固定启用；编辑后端 VenueUpdateRequest 不接收启用态）
 //   - 经纬度强制 Number 归一
-// getVenues/createVenue 依赖 axios 实例与网络，不在此单测覆盖（由页面级冒烟验证）。
+// getVenues/createVenue/updateVenue/deleteVenue 依赖 axios 实例与网络，
+// 不在此单测覆盖（由后端 curl 联调与页面级冒烟验证）。
 // ─────────────────────────────────────────────────────────────
 import { describe, expect, it } from 'vitest'
-import { toCreatePayload, toVenueRow, type VenueDto } from '../venue'
+import { toCreatePayload, toVenueRow, toWritePayload, type VenueDto } from '../venue'
 import type { VenueForm } from '@/views/venue/types'
 
 /** 构造一个字段齐全的后端 DTO，单项用例再按需覆盖 */
@@ -144,5 +146,45 @@ describe('toCreatePayload · 新增表单 → 后端请求体适配', () => {
     expect(payload.name).toBe('联调测试场地')
     expect(payload.lng).toBe(120.162727)
     expect(payload.lat).toBe(30.19002)
+  })
+})
+
+describe('toWritePayload · 编辑/新增写接口共用适配（PUT 与 POST 同构）', () => {
+  function baseForm(overrides: Partial<VenueForm> = {}): VenueForm {
+    return {
+      name: '编辑联调场地',
+      address: '杭州市西湖区文三路 100 号',
+      lng: 120.13,
+      lat: 30.28,
+      enabled: true,
+      ...overrides,
+    }
+  }
+
+  it('编辑表单：只透出 name/address/lng/lat 四字段，剔除 enabled（后端 PUT 不接收启用态）', () => {
+    const payload = toWritePayload(baseForm({ enabled: false }))
+    expect(Object.keys(payload).sort()).toEqual(['address', 'lat', 'lng', 'name'].sort())
+    expect(payload).not.toHaveProperty('enabled')
+  })
+
+  it('编辑关闭启用开关也不影响请求体：enabled 不下发，服务端保持原启用态', () => {
+    const enabled = toWritePayload(baseForm({ enabled: true }))
+    const disabled = toWritePayload(baseForm({ enabled: false }))
+    expect(enabled).toEqual(disabled)
+  })
+
+  it('经纬度强制 Number 归一，与新增口径完全一致', () => {
+    const payload = toWritePayload(
+      baseForm({ lng: '120.13' as unknown as number, lat: '30.28' as unknown as number }),
+    )
+    expect(payload.lng).toBe(120.13)
+    expect(payload.lat).toBe(30.28)
+    expect(typeof payload.lng).toBe('number')
+    expect(typeof payload.lat).toBe('number')
+  })
+
+  it('toCreatePayload 与 toWritePayload 输出同构（新增/编辑共用一套适配，避免两处分叉）', () => {
+    const form = baseForm({ address: '' })
+    expect(toCreatePayload(form)).toEqual(toWritePayload(form))
   })
 })

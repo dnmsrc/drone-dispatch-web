@@ -8,18 +8,15 @@
 //     内部 AMapPicker 支持高德地名搜索 + 地图点选，坐标统一 WGS-84；
 //     未配置 Key / 加载失败时自动降级手动经纬度输入
 //   - 删除确认 → 操作列 confirm 二次确认（内部走 ElMessageBox）
-//   - 列表读取已接真实后端 GET /api/venues（@/api/venue 完成 DTO 适配）；
-//     新增已接真实后端 POST /api/venues（只发 name/address/lng/lat，服务端固定启用）；
-//     编辑/删除后端接口尚未提供，暂由 ./mock.ts 本地维护，刷新后写操作回滚
-// TODO(server): 后端补齐场地编辑/删除接口后，把 openForm 编辑分支与删除里的 mock 调用换成 @/api/venue。
+//   - 完整 CRUD 已接真实后端 /api/venues（@/api/venue 完成 DTO 适配）：
+//     列表 GET、新增 POST、编辑 PUT/:id、软删除 DELETE/:id；写操作成功后统一重新拉列表
 // ─────────────────────────────────────────────────────────────
 import { h, onMounted, ref } from 'vue'
 import { ElMessage, ElTag } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { DialogAction, ProTable } from '@/components/pro'
 import type { TableActions, TableColumn } from '@/components/pro'
-import { createVenue, getVenues } from '@/api/venue'
-import { deleteVenue, seedVenuesFromRemote, updateVenue } from './mock'
+import { createVenue, deleteVenue, getVenues, updateVenue } from '@/api/venue'
 import { venueEditDialog } from './components/venue-edit.dialog'
 import type { VenueRow } from './types'
 
@@ -31,10 +28,7 @@ async function load(): Promise<void> {
   loading.value = true
   try {
     // http 层已剥离 Result 信封并在失败时全局弹错；这里只负责取数与兜底
-    const remote = await getVenues()
-    rows.value = remote
-    // 同步进本地 store，使后端真实场地在写接口落地前也能走通编辑/删除交互（仅内存态）
-    seedVenuesFromRemote(remote)
+    rows.value = await getVenues()
   } catch {
     // 失败时保持空表（ProTable 展示 empty-text），避免残留上一页数据
     rows.value = []
@@ -55,9 +49,15 @@ async function openForm(row?: VenueRow): Promise<void> {
 
   const form = result.data
   if (editingId.value) {
-    // TODO(server): 编辑接口落地后换成 PUT /api/venues/:id
-    updateVenue(editingId.value, form)
+    // 编辑走真实后端 PUT /api/venues/:id（只改 name/address/lng/lat，enabled 服务端保持原值）。
+    // 失败时拦截器已全局弹错，这里捕获后直接 return，避免误弹「已保存」、也不刷新列表。
+    try {
+      await updateVenue(editingId.value, form)
+    } catch {
+      return
+    }
     ElMessage.success('场地已保存')
+    // 后端返回 Void，重新拉列表才能呈现编辑后的名称/地址/坐标
     void load()
     return
   }
@@ -71,6 +71,18 @@ async function openForm(row?: VenueRow): Promise<void> {
   }
   ElMessage.success('场地已新增')
   // 后端返回 Void、不回传新 id，重新拉列表才能拿到自增主键并呈现新场地
+  void load()
+}
+
+/** 删除场地：DELETE /api/venues/:id 软删除。失败由 http 拦截器弹错，本函数捕获后不刷新列表 */
+async function handleDelete(id: string): Promise<void> {
+  try {
+    await deleteVenue(id)
+  } catch {
+    return
+  }
+  ElMessage.success('已删除')
+  // 软删除后该场地不再出现在启用列表，重新拉取
   void load()
 }
 
@@ -131,11 +143,7 @@ const actions: TableActions = {
       // confirm 由 ProTable 内部弹 ElMessageBox，确认后才执行 onClick
       confirm: (row) => `确认删除场地「${(row as VenueRow).name}」？删除后不可恢复。`,
       confirmButtonText: '删除',
-      onClick: (row) => {
-        deleteVenue((row as VenueRow).id)
-        ElMessage.success('已删除')
-        void load()
-      },
+      onClick: (row) => void handleDelete((row as VenueRow).id),
     },
   ],
 }
