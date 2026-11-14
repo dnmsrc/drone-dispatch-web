@@ -2,9 +2,11 @@
 // ─────────────────────────────────────────────────────────────
 // 场地新增 / 编辑弹窗（自定义业务弹窗，经 wrapDialog 包成命令式句柄）
 //
-// 不再用裸 input-number 填经纬度：中部 AMapPicker 负责「地名搜索 + 地图点选」，
-// 选中后把 WGS-84 坐标与名称/地址回填到表单，人工仍可微调名称与地址。
+// 不再用裸 input-number 填经纬度：AMapPicker 置于表单最前，负责「地名搜索 + 地图点选」，
+// 用户先选点自动回填名称/地址/坐标，再到下方人工微调名称与地址，
+// 避免「先手填、后选点被覆盖」的糟糕体验；选中坐标统一转 WGS-84。
 // 数据契约沿用 VenueForm（name/address/lng/lat/enabled），mock 与后端 CRUD 不改名。
+// 必填口径：仅场地名称与经纬度（经纬度由地图选点保证、带范围校验）；详细地址为选填，可留空。
 // ─────────────────────────────────────────────────────────────
 import { reactive, ref, watch } from 'vue'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -41,8 +43,8 @@ watch(visible, (open) => {
 })
 
 const rules: FormRules<VenueForm> = {
+  // 仅场地名称必填；详细地址选填（留空时提交空串，后端归一空串落库）
   name: [{ required: true, message: '请填写场地名称', trigger: 'blur' }],
-  address: [{ required: true, message: '请填写详细地址', trigger: 'blur' }],
   lng: [
     {
       validator: (_r, value: number, cb) =>
@@ -108,19 +110,8 @@ async function submit(): Promise<void> {
     :close-on-click-modal="false"
   >
     <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="venue-form">
-      <el-form-item label="场地名称" prop="name">
-        <el-input v-model="form.name" maxlength="30" placeholder="例如：滨江世纪广场" />
-      </el-form-item>
-
-      <el-form-item label="详细地址" prop="address">
-        <el-input
-          v-model="form.address"
-          maxlength="60"
-          placeholder="例如：杭州市滨江区江南大道 100 号"
-        />
-      </el-form-item>
-
-      <el-form-item label="地图选点（坐标按 WGS-84 存储）" prop="lng">
+      <!-- 选点区置顶：先在地图搜索 / 点选，自动回填下方名称、地址与坐标，再人工微调 -->
+      <el-form-item label="地图选点 / 地点搜索（坐标按 WGS-84 存储）" prop="lng">
         <AMapPicker v-model="pickerValue" @update:model-value="onLocationChange" />
       </el-form-item>
 
@@ -134,6 +125,18 @@ async function submit(): Promise<void> {
           <el-input :model-value="String(form.lat)" readonly />
         </el-form-item>
       </div>
+
+      <el-form-item label="场地名称" prop="name">
+        <el-input v-model="form.name" maxlength="30" placeholder="例如：滨江世纪广场" />
+      </el-form-item>
+
+      <el-form-item label="详细地址（选填）" prop="address">
+        <el-input
+          v-model="form.address"
+          maxlength="60"
+          placeholder="选填，例如：杭州市滨江区江南大道 100 号"
+        />
+      </el-form-item>
 
       <el-form-item label="启用状态">
         <el-switch v-model="form.enabled" active-text="启用" inactive-text="停用" />

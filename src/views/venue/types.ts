@@ -6,7 +6,7 @@
 //   POST   /admin/venues        新增（body 无 id，服务端生成 v+时间戳）
 //   PUT    /admin/venues/:id    编辑（按字段合并）
 //   DELETE /admin/venues/:id    删除
-// 写操作要求管理员角色；名称与地址必填，经纬度服务端 Number() 兜底。
+// 写操作要求管理员角色；场地名称必填，详细地址选填（空串落库），经纬度由地图选点保证。
 // 当前页面为静态实现，mock.ts 用内存 store 模拟同一套 CRUD；
 // TODO(server): 接真接口后仅替换 mock.ts 内的调用，页面与弹窗不改名。
 // ─────────────────────────────────────────────────────────────
@@ -17,7 +17,7 @@ export interface VenueRow {
   id: string
   /** 场地名称（必填，最长 30 字） */
   name: string
-  /** 详细地址（必填，最长 60 字） */
+  /** 详细地址（选填，可留空；最长 60 字，空值以空串落库） */
   address: string
   /** 经度（-180 ~ 180，保留 3 位小数） */
   lng: number
