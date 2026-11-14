@@ -1,7 +1,8 @@
 # drone-dispatch-web（管理后台 · 正式版）
 
-> 本目录是**独立 Git 仓库**（仓库名即目录名 `drone-dispatch-web`），`git log` 只包含前端相关提交，
-> 与顶层文档仓、`drone-dispatch-h5`、`drone-dispatch-server` 互不混杂。仓库结构说明见上级 `README.md`。
+> 本目录是四个平级独立 Git 仓库之一（仓库名即目录名 `drone-dispatch-web`），`git log` 只包含前端相关提交，
+> 与 `drone-dispatch-prototype`、`drone-dispatch-h5`、`drone-dispatch-server` 三仓互不混杂。
+> 四仓总览与 GitHub 地址见 [`drone-dispatch-prototype` 的 README](https://github.com/dnmsrc/drone-dispatch-prototype#项目全貌与仓库分布)。
 
 无人机 SkyShow 派单系统 · Web 管理后台，技术栈 **Vue 3 + TypeScript + Vite + Element Plus + Sass**。
 
