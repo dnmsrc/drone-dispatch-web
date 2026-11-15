@@ -2,7 +2,7 @@
 // 场地管理 · 视图层契约类型（与后端 /api/venues 的 DTO 差异统一在 @/api/venue 适配收口）
 //
 // 预设表演场地，用户下单时可直接选择。后端提供完整 CRUD：
-//   GET    /api/venues        列表（仅 enabled=1 AND deleted=0）
+//   GET    /api/venues        列表（全部未删除：仅过滤 deleted=1，含 enabled=0 停用项）
 //   POST   /api/venues        新增（body 无 id，数据库自增主键，enabled 随表单提交）
 //   PUT    /api/venues/:id    编辑业务字段含启用状态（id 走路径，enabled 随表单提交）
 //   DELETE /api/venues/:id    软删除（deleted 置 1，数据保留）

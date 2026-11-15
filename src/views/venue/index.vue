@@ -20,7 +20,7 @@ import { createVenue, deleteVenue, getVenues, updateVenue } from '@/api/venue'
 import { venueEditDialog } from './components/venue-edit.dialog'
 import type { VenueRow } from './types'
 
-/* ═══ 列表状态（后端接口一次返回全部启用场地，无搜索/分页）═══ */
+/* ═══ 列表状态（后端一次返回全部未删除场地，含停用态，无搜索/分页）═══ */
 const loading = ref(false)
 const rows = ref<VenueRow[]>([])
 
@@ -82,7 +82,7 @@ async function handleDelete(id: string): Promise<void> {
     return
   }
   ElMessage.success('已删除')
-  // 软删除后该场地不再出现在启用列表，重新拉取
+  // 软删除后该场地不再出现在列表，重新拉取
   void load()
 }
 

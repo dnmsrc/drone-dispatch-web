@@ -47,7 +47,7 @@ describe('toVenueRow · 后端 Venue DTO 适配', () => {
     })
   })
 
-  it('enabled=0 映射为 false（停用态，虽然列表接口当前只返回启用项）', () => {
+  it('enabled=0 映射为 false（停用态，列表接口会返回停用项，页面据此渲染停用标签）', () => {
     const row = toVenueRow(baseDto({ enabled: 0 }))
     expect(row.enabled).toBe(false)
   })

@@ -2,7 +2,7 @@
 // 场地接口层 —— 对接后端 drone-dispatch-server VenueController（/api/venues）
 //
 // 已对接接口（前端实际调用）：
-//   GET    /api/venues        → Result<List<Venue>>，仅返回 enabled=1 AND deleted=0
+//   GET    /api/venues        → Result<List<Venue>>，返回全部未删除场地（enabled=1/0，仅过滤 deleted=1）
 //   POST   /api/venues        → Result<Void>，新增（body 带 enabled，不传时后端兜底启用）
 //   PUT    /api/venues/:id    → Result<Void>，编辑业务字段含启用状态（id 走路径，enabled 随表单提交）
 //   DELETE /api/venues/:id    → Result<Void>，软删除（deleted 置 1、数据保留）
@@ -29,11 +29,11 @@ export interface VenueDto {
   lng: number | null
   /** 纬度 DECIMAL(10,6)，理论可空 */
   lat: number | null
-  /** 启用状态：1 启用 / 0 停用（列表接口只可能返回 1） */
+  /** 启用状态：1 启用 / 0 停用（列表含停用项，前端按此值渲染启用/停用标签） */
   enabled: number
   createdAt?: string
   updatedAt?: string
-  /** 软删除：0 正常 / 1 已删（列表接口只可能返回 0） */
+  /** 软删除：0 正常 / 1 已删（列表已由后端过滤，只可能返回 0） */
   deleted?: number
   deletedAt?: string | null
 }
@@ -54,7 +54,7 @@ export function toVenueRow(dto: VenueDto): VenueRow {
 }
 
 /**
- * 查询启用场地列表（已适配为前端 VenueRow）。
+ * 查询场地列表（全部未删除，含停用态；已适配为前端 VenueRow）。
  * http 层响应拦截器会自动剥离 Result 信封，这里直接拿到 VenueDto[]。
  */
 export async function getVenues(): Promise<VenueRow[]> {
