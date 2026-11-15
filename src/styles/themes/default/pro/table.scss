@@ -21,6 +21,29 @@
     width: 100%;
   }
 
+  // 固定列与斑马纹/悬停行背景对齐（修 Element Plus 固定列露白问题）
+  //
+  // 背景：EP 把斑马纹/悬停背景挂在普通单元格 td 上（--el-fill-color-lighter /
+  //   --el-table-row-hover-bg-color），而固定列单元格用 background:inherit 继承
+  //   tr 的 --el-table-tr-bg-color（白色），不参与斑马纹 → 斑马纹行的右侧固定列
+  //   突兀露出一块白底。这里给固定列单元格补回与所在行一致的背景。
+  // 取值沿用 EP 自身 CSS 变量而非硬编码，后续换肤自动跟随。
+  &.el-table--striped .el-table__body tr.el-table__row--striped {
+    td.el-table-fixed-column--left,
+    td.el-table-fixed-column--right {
+      background: var(--el-fill-color-lighter);
+    }
+  }
+
+  // 悬停行：固定列跟随行 hover 底色；选择器加 tr 提升优先级以压住上面的斑马纹补色，
+  // 普通单元格仍由 EP 原规则控制，这里只修固定列。
+  .el-table__body tr.hover-row {
+    td.el-table-fixed-column--left,
+    td.el-table-fixed-column--right {
+      background-color: var(--el-table-row-hover-bg-color);
+    }
+  }
+
   // 表头：字重 500、字号 13px（Element 默认偏粗，按原型弱化）
   .el-table__header-wrapper th.el-table__cell,
   .el-table__fixed-header-wrapper th.el-table__cell {
