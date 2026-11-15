@@ -7,8 +7,8 @@
 //   - lng/lat：null / 非有限值 → 0 兜底，保证页面 toFixed 不炸
 //   - 审计字段不外泄到 VenueRow
 // 以及写接口提交体 VenueForm → VenueWritePayload（POST 新增 / PUT 编辑共用）的口径：
-//   - 只发 name/address/lng/lat 四字段，剔除 enabled
-//     （新增后端固定启用；编辑后端 VenueUpdateRequest 不接收启用态）
+//   - 下发 name/address/lng/lat/enabled 五字段，启用开关随表单真实提交
+//     （后端写 DTO 已接收 enabled，boolean 由后端转 TINYINT 1/0 落库）
 //   - 经纬度强制 Number 归一
 // getVenues/createVenue/updateVenue/deleteVenue 依赖 axios 实例与网络，
 // 不在此单测覆盖（由后端 curl 联调与页面级冒烟验证）。
@@ -106,21 +106,22 @@ describe('toCreatePayload · 新增表单 → 后端请求体适配', () => {
     }
   }
 
-  it('正常表单：四字段原样透出，保留六位小数坐标', () => {
+  it('正常表单：五字段原样透出，enabled=true 随表单下发，保留六位小数坐标', () => {
     const payload = toCreatePayload(baseForm())
     expect(payload).toEqual({
       name: '联调测试场地',
       address: '杭州市滨江区联调路 88 号',
       lng: 120.162727,
       lat: 30.19002,
+      enabled: true,
     })
   })
 
-  it('严格只含 name/address/lng/lat 四个键，主动剔除 enabled（后端新增固定启用）', () => {
+  it('请求体含 name/address/lng/lat/enabled 五个键，开关关闭时 enabled=false 真实下发', () => {
     const payload = toCreatePayload(baseForm({ enabled: false }))
-    expect(Object.keys(payload).sort()).toEqual(['address', 'lat', 'lng', 'name'].sort())
-    expect(payload).not.toHaveProperty('enabled')
-    // 即使弹窗里关了启用开关，也不影响提交体（后端一律 enabled=1）
+    expect(Object.keys(payload).sort()).toEqual(['address', 'enabled', 'lat', 'lng', 'name'].sort())
+    expect(payload.enabled).toBe(false)
+    // 弹窗里关闭启用开关，必须如实提交给后端（后端据此落库停用态）
     expect(payload.lng).toBe(120.162727)
   })
 
@@ -161,16 +162,19 @@ describe('toWritePayload · 编辑/新增写接口共用适配（PUT 与 POST �
     }
   }
 
-  it('编辑表单：只透出 name/address/lng/lat 四字段，剔除 enabled（后端 PUT 不接收启用态）', () => {
+  it('编辑表单：透出含 enabled 的五字段，开关关闭时 enabled=false 真实下发（后端 PUT 接收启用态）', () => {
     const payload = toWritePayload(baseForm({ enabled: false }))
-    expect(Object.keys(payload).sort()).toEqual(['address', 'lat', 'lng', 'name'].sort())
-    expect(payload).not.toHaveProperty('enabled')
+    expect(Object.keys(payload).sort()).toEqual(['address', 'enabled', 'lat', 'lng', 'name'].sort())
+    expect(payload.enabled).toBe(false)
   })
 
-  it('编辑关闭启用开关也不影响请求体：enabled 不下发，服务端保持原启用态', () => {
+  it('启用开关的 true/false 如实反映到请求体：后端据此切换启用状态', () => {
     const enabled = toWritePayload(baseForm({ enabled: true }))
     const disabled = toWritePayload(baseForm({ enabled: false }))
-    expect(enabled).toEqual(disabled)
+    expect(enabled.enabled).toBe(true)
+    expect(disabled.enabled).toBe(false)
+    // 除 enabled 外其余字段保持一致，差异只来自开关
+    expect({ ...enabled, enabled: undefined }).toEqual({ ...disabled, enabled: undefined })
   })
 
   it('经纬度强制 Number 归一，与新增口径完全一致', () => {

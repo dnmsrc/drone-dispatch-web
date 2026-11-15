@@ -3,8 +3,8 @@
 //
 // 已对接接口（前端实际调用）：
 //   GET    /api/venues        → Result<List<Venue>>，仅返回 enabled=1 AND deleted=0
-//   POST   /api/venues        → Result<Void>，新增（服务端强制 enabled=1，不回传新实体）
-//   PUT    /api/venues/:id    → Result<Void>，编辑 4 个业务字段（id 走路径，不接收 enabled）
+//   POST   /api/venues        → Result<Void>，新增（body 带 enabled，不传时后端兜底启用）
+//   PUT    /api/venues/:id    → Result<Void>，编辑业务字段含启用状态（id 走路径，enabled 随表单提交）
 //   DELETE /api/venues/:id    → Result<Void>，软删除（deleted 置 1、数据保留）
 // 后端另提供 GET /api/venues/:id 详情；本页编辑直接用列表行回填，暂不需要单独拉详情。
 //
@@ -63,17 +63,18 @@ export async function getVenues(): Promise<VenueRow[]> {
 }
 
 /**
- * 新增 / 编辑共用的写接口请求体 —— 后端 VenueCreateRequest 与 VenueUpdateRequest
- * 两个 record 字段完全一致，都是 name/address/lng/lat。
+ * 新增 / 编辑共用的写接口请求体 —— 对接后端 VenueCreateRequest 与 VenueUpdateRequest，
+ * 两个 record 字段一致，都是 name/address/lng/lat/enabled。
  *
- * 只提交 4 个字段：id 走 URL 路径、enabled 由服务端掌控（新增固定 1、编辑保持原值）、
- * 时间戳与软删除标记均为系统字段，前端一律不传（传了后端 record 也不接收）。
+ * 提交 5 个字段：id 走 URL 路径；enabled 随弹窗启用开关一起下发（boolean），
+ * 后端转成 TINYINT 的 1/0 落库；时间戳与软删除标记为系统字段，前端不传。
  */
 export interface VenueWritePayload {
   name: string
   address: string
   lng: number
   lat: number
+  enabled: boolean
 }
 
 /** 兼容别名：新增请求体（与编辑同构，保留旧名以免影响历史调用与测试） */
@@ -82,9 +83,9 @@ export type VenueCreatePayload = VenueWritePayload
 /**
  * 弹窗表单 VenueForm → 写接口请求体（POST 新增 / PUT 编辑共用）。
  *
- * 纯函数、无副作用，单独导出便于单测锁定两条关键契约：
- *   1) 只保留 name/address/lng/lat 四字段，主动剔除 enabled
- *      （新增后端固定启用；编辑后端不接收启用态，开关不改服务端值）；
+ * 纯函数、无副作用，单测锁定两条关键契约：
+ *   1) 透出 name/address/lng/lat/enabled 五字段，启用开关随表单真实下发
+ *      （后端据此更新启用状态，boolean 由后端转 1/0 落库）；
  *   2) 经纬度强制 Number 归一，避免字符串混入请求体。
  */
 export function toWritePayload(form: VenueForm): VenueWritePayload {
@@ -93,6 +94,7 @@ export function toWritePayload(form: VenueForm): VenueWritePayload {
     address: form.address,
     lng: Number(form.lng),
     lat: Number(form.lat),
+    enabled: form.enabled,
   }
 }
 
@@ -115,7 +117,7 @@ export async function createVenue(form: VenueForm): Promise<void> {
  * 编辑场地（PUT /api/venues/:id）。
  *
  * id 走路径（前端字符串 id 直接拼接，后端 @PathVariable 解析为 Long）；
- * body 只发 4 个业务字段，enabled 不接收（启用态在服务端保持原值不变）。
+ * body 含 enabled，启用开关随编辑表单一起下发（后端缺失时返回 400）。
  * 成功返回 Void，调用方需重新拉列表刷新；404（不存在/已删）、400（校验失败）
  * 由 http 拦截器统一弹错并 reject。
  */
