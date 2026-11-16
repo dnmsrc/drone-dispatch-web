@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# 本地真实页面冒烟脚本与截图（跨仓引用原型 e2e 的 puppeteer-core，不入库）
+.smoke/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
