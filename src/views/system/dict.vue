@@ -10,8 +10,7 @@
 //     （ProForm 的 fields 是响应式 props，computed 实时生效，比 createFormDialog
 //      的固定快照更适合这种动态表单）
 // 内置字典（system）保护：类型不可删、字典项的键编辑时禁用（被业务引用）。
-// 数据走 ./dict-mock 的内存 CRUD，刷新回滚。
-// TODO(server): 接 /admin/dict 系列后仅替换 dict-mock 调用，本页不改名。
+// 数据走真实后端 /api/dict 两级 CRUD（@/api/dict 完成 DTO 适配），本页只消费 dict-types 视图类型。
 // ─────────────────────────────────────────────────────────────
 import { computed, h, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElSwitch, ElTag } from 'element-plus'
@@ -24,14 +23,14 @@ import {
   createDictType,
   deleteDictItem,
   deleteDictType,
-  queryDictItems,
-  queryDictTypes,
+  getDictItems,
+  getDictTypes,
   toggleDictItem,
   updateDictItem,
   updateDictType,
-} from './dict-mock'
+} from '@/api/dict'
 import { PRICE_TYPES } from './dict-types'
-import type { DictItem, DictTypeDetail, DictTypeSummary } from './dict-types'
+import type { DictItem, DictItemForm, DictTypeDetail, DictTypeSummary } from './dict-types'
 
 /* ═══ 列表状态 ═══ */
 const loadingTypes = ref(false)
@@ -56,31 +55,42 @@ const valueLabel = computed(() => {
 
 async function loadTypes(keepSelection = true): Promise<void> {
   loadingTypes.value = true
-  await new Promise((r) => window.setTimeout(r, 200))
-  const list = queryDictTypes()
-  types.value = list
-  if (keepSelection && current.value) {
-    const t = list.find((x) => x.type === current.value!.type)
-    if (t) await onSelectType(t)
-    else {
-      current.value = null
-      items.value = []
+  try {
+    const list = await getDictTypes()
+    types.value = list
+    if (keepSelection && current.value) {
+      const t = list.find((x) => x.type === current.value!.type)
+      if (t) await onSelectType(t)
+      else {
+        current.value = null
+        items.value = []
+      }
     }
+    if (!current.value && list.length) {
+      await onSelectType(list[0])
+    }
+  } catch {
+    // 失败由 http 拦截器全局弹错；这里保持空表，避免残留上一页数据
+    types.value = []
+    current.value = null
+    items.value = []
+  } finally {
+    loadingTypes.value = false
   }
-  if (!current.value && list.length) {
-    await onSelectType(list[0])
-  }
-  loadingTypes.value = false
 }
 
 async function onSelectType(row: DictTypeSummary | null): Promise<void> {
   if (!row) return
   loadingItems.value = true
-  await new Promise((r) => window.setTimeout(r, 200))
-  const detail = queryDictItems(row.type)
-  current.value = detail
-  items.value = detail.list
-  loadingItems.value = false
+  try {
+    const detail = await getDictItems(row.type)
+    current.value = detail
+    items.value = detail.list
+  } catch {
+    // 失败由 http 拦截器弹错，保留当前选中态与旧列表
+  } finally {
+    loadingItems.value = false
+  }
 }
 
 onMounted(() => void loadTypes(false))
@@ -129,21 +139,21 @@ async function saveType(): Promise<void> {
   if (!ok) return
   typeSaving.value = true
   try {
-    await new Promise((r) => window.setTimeout(r, 200))
     if (typeForm.oldType) {
-      updateDictType(typeForm.oldType, {
-        type: typeForm.type,
+      // 编辑：dictCode 走 URL（oldType），code 不可改；请求体只取 name/remark
+      await updateDictType(typeForm.oldType, {
+        type: typeForm.oldType,
         name: typeForm.name,
         remark: typeForm.remark,
       })
     } else {
-      createDictType({ type: typeForm.type, name: typeForm.name, remark: typeForm.remark })
+      await createDictType({ type: typeForm.type, name: typeForm.name, remark: typeForm.remark })
     }
     ElMessage.success('已保存')
     typeDialogVisible.value = false
     await loadTypes()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '保存失败')
+  } catch {
+    // 失败（400 校验/403 角色/网络异常等）由 http 拦截器统一弹错，不关闭弹窗便于修改重试
   } finally {
     typeSaving.value = false
   }
@@ -159,15 +169,15 @@ async function removeType(row: DictTypeSummary): Promise<void> {
   })
   if (result.action !== DialogAction.Confirm) return
   try {
-    deleteDictType(row.type)
+    await deleteDictType(row.type)
     ElMessage.success('已删除')
     if (current.value?.type === row.type) {
       current.value = null
       items.value = []
     }
     await loadTypes()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '删除失败')
+  } catch {
+    // 失败（如内置类型 400、403）由 http 拦截器统一弹错
   }
 }
 
@@ -249,8 +259,7 @@ async function saveItem(): Promise<void> {
   if (!ok) return
   itemSaving.value = true
   try {
-    await new Promise((r) => window.setTimeout(r, 200))
-    const payload = {
+    const payload: DictItemForm = {
       key: itemForm.key,
       label: itemForm.label,
       value: itemForm.value,
@@ -258,14 +267,14 @@ async function saveItem(): Promise<void> {
       sort: itemForm.sort,
       status: (itemForm.status ? 1 : 0) as 0 | 1,
     }
-    if (itemForm.id) updateDictItem(current.value.type, itemForm.id, payload)
-    else createDictItem(current.value.type, payload)
+    if (itemForm.id) await updateDictItem(current.value.type, itemForm.id, payload)
+    else await createDictItem(current.value.type, payload)
     ElMessage.success('已保存')
     itemDialogVisible.value = false
     await onSelectType(current.value as unknown as DictTypeSummary)
     await loadTypes()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '保存失败')
+  } catch {
+    // 失败（键重复 400、403、网络异常等）由 http 拦截器统一弹错，弹窗保留便于修改重试
   } finally {
     itemSaving.value = false
   }
@@ -274,12 +283,14 @@ async function saveItem(): Promise<void> {
 async function onToggleStatus(row: DictItem, enabled: boolean): Promise<void> {
   if (!current.value) return
   try {
-    toggleDictItem(current.value.type, row.id, enabled)
+    // 后端 PUT 要求全字段，适配层以当前行 row 为底仅覆盖 status 后整体提交
+    await toggleDictItem(current.value.type, row, enabled)
+    // 请求成功后再更新本地行状态；失败则不更新，受控 ElSwitch 自动回弹
     row.status = enabled ? 1 : 0
     ElMessage.success(enabled ? '已启用' : '已停用（H5 端将不再展示该项）')
     await loadTypes()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '操作失败')
+  } catch {
+    // 失败由 http 拦截器统一弹错，row.status 未改，开关保持原态
   }
 }
 
@@ -294,12 +305,12 @@ async function removeItem(row: DictItem): Promise<void> {
   })
   if (result.action !== DialogAction.Confirm) return
   try {
-    deleteDictItem(current.value.type, row.id)
+    await deleteDictItem(current.value.type, row.id)
     ElMessage.success('已删除')
     await onSelectType(current.value as unknown as DictTypeSummary)
     await loadTypes()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '删除失败')
+  } catch {
+    // 失败（404/403 等）由 http 拦截器统一弹错
   }
 }
 
