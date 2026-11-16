@@ -45,6 +45,7 @@ function baseTypeDto(overrides: Partial<DictTypeSummaryDto> = {}): DictTypeSumma
     dictName: '架次档位',
     remark: '下单可选规格',
     systemFlag: 1,
+    sort: 1,
     itemCount: 5,
     enabledCount: 5,
     ...overrides,
@@ -92,12 +93,13 @@ describe('toDictItem · 后端字典项 VO 适配', () => {
 })
 
 describe('toDictType · 后端类型汇总 VO 适配', () => {
-  it('完整字段：dictCode/dictName 改名，systemFlag=1 → system=true', () => {
+  it('完整字段：dictCode/dictName 改名，systemFlag=1 → system=true，sort 透传', () => {
     expect(toDictType(baseTypeDto())).toEqual({
       type: 'drone_tier',
       name: '架次档位',
       remark: '下单可选规格',
       system: true,
+      sort: 1,
       itemCount: 5,
       enabledCount: 5,
     })
@@ -111,6 +113,11 @@ describe('toDictType · 后端类型汇总 VO 适配', () => {
 
   it('remark 为 null 时归一空串', () => {
     expect(toDictType(baseTypeDto({ remark: null as unknown as string })).remark).toBe('')
+  })
+
+  it('sort 缺失（旧数据/异常响应）时兜底为 0，不向页面透出 undefined', () => {
+    const t = toDictType(baseTypeDto({ sort: undefined as unknown as number }))
+    expect(t.sort).toBe(0)
   })
 })
 
@@ -147,21 +154,29 @@ describe('toDictDetail · 类型详情（含字典项数组）适配', () => {
 })
 
 describe('toTypeCreatePayload / toTypeUpdatePayload · 类型写请求体适配', () => {
-  const form: DictTypeForm = { type: 'venue_type', name: '场地类型', remark: '备注' }
+  const form: DictTypeForm = { type: 'venue_type', name: '场地类型', remark: '备注', sort: 8 }
 
-  it('新增：透出 dictCode/dictName/remark 三字段，前端 type/name 改后端名', () => {
+  it('新增：透出 dictCode/dictName/remark/sort 四字段，前端 type/name 改后端名', () => {
     expect(toTypeCreatePayload(form)).toEqual({
       dictCode: 'venue_type',
       dictName: '场地类型',
       remark: '备注',
+      sort: 8,
     })
   })
 
-  it('编辑：不含 dictCode（code 不可改，定位走 URL），仅 dictName/remark', () => {
+  it('编辑：不含 dictCode（code 不可改，定位走 URL），含 dictName/remark/sort', () => {
     const payload = toTypeUpdatePayload(form)
-    expect(Object.keys(payload).sort()).toEqual(['dictName', 'remark'].sort())
+    expect(Object.keys(payload).sort()).toEqual(['dictName', 'remark', 'sort'].sort())
     expect(payload).not.toHaveProperty('dictCode')
     expect(payload.dictName).toBe('场地类型')
+    expect(payload.sort).toBe(8)
+  })
+
+  it('sort 为数字字符串时强制转 number（input-number 边界兜底）', () => {
+    const payload = toTypeCreatePayload({ ...form, sort: '3' as unknown as number })
+    expect(payload.sort).toBe(3)
+    expect(typeof payload.sort).toBe('number')
   })
 })
 

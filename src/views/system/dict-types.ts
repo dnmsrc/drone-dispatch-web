@@ -38,6 +38,8 @@ export interface DictTypeSummary {
   remark: string
   /** 是否系统内置（内置不可删类型） */
   system: boolean
+  /** 排序号（升序；新增类型缺省 max+1 排到末尾，可手动调整） */
+  sort: number
   /** 字典项总数 */
   itemCount: number
   /** 启用中的字典项数 */
@@ -56,6 +58,8 @@ export interface DictTypeForm {
   type: string
   name: string
   remark: string
+  /** 排序号（升序）；新增缺省由后端 max(sort)+1 兜底 */
+  sort: number
 }
 
 /** 字典项编辑/新增提交体 */

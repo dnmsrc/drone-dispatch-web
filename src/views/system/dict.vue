@@ -99,7 +99,7 @@ onMounted(() => void loadTypes(false))
 const typeDialogVisible = ref(false)
 const typeSaving = ref(false)
 const typeFormRef = ref<ProFormExpose>()
-const typeForm = reactive({ oldType: '', type: '', name: '', remark: '' })
+const typeForm = reactive({ oldType: '', type: '', name: '', remark: '', sort: 1 })
 
 const typeFields = computed<FormFieldConfig[]>(() => [
   {
@@ -124,13 +124,26 @@ const typeFields = computed<FormFieldConfig[]>(() => [
     placeholder: '该字典的用途说明（可选）',
     props: { rows: 2, maxlength: 100 },
   },
+  {
+    prop: 'sort',
+    label: '排序',
+    control: 'input-number',
+    // 数字越小越靠前；新增默认 max(sort)+1，编辑回显该行原值
+    props: { min: 1, max: 9999, precision: 0, controlsPosition: 'right' },
+  },
 ])
+
+/** 新增类型的默认排序号 = 当前类型列表最大 sort + 1（空表从 1 开始） */
+function nextTypeSort(): number {
+  return types.value.reduce((max, t) => Math.max(max, t.sort || 0), 0) + 1
+}
 
 function openTypeDialog(row?: DictTypeSummary): void {
   typeForm.oldType = row?.type ?? ''
   typeForm.type = row?.type ?? ''
   typeForm.name = row?.name ?? ''
   typeForm.remark = row?.remark ?? ''
+  typeForm.sort = row?.sort ?? nextTypeSort()
   typeDialogVisible.value = true
 }
 
@@ -140,14 +153,20 @@ async function saveType(): Promise<void> {
   typeSaving.value = true
   try {
     if (typeForm.oldType) {
-      // 编辑：dictCode 走 URL（oldType），code 不可改；请求体只取 name/remark
+      // 编辑：dictCode 走 URL（oldType），code 不可改；请求体取 name/remark/sort
       await updateDictType(typeForm.oldType, {
         type: typeForm.oldType,
         name: typeForm.name,
         remark: typeForm.remark,
+        sort: typeForm.sort,
       })
     } else {
-      await createDictType({ type: typeForm.type, name: typeForm.name, remark: typeForm.remark })
+      await createDictType({
+        type: typeForm.type,
+        name: typeForm.name,
+        remark: typeForm.remark,
+        sort: typeForm.sort,
+      })
     }
     ElMessage.success('已保存')
     typeDialogVisible.value = false
@@ -350,7 +369,8 @@ function renderValue(row: DictItem) {
               <div class="type-key">{{ row.type }}</div>
             </template>
           </el-table-column>
-          <el-table-column prop="itemCount" label="条目" width="60" align="center" />
+          <el-table-column prop="sort" label="排序" width="56" align="center" />
+          <el-table-column prop="itemCount" label="条目" width="56" align="center" />
           <el-table-column label="操作" width="100" align="center">
             <template #default="{ row }">
               <el-button
@@ -490,7 +510,7 @@ function renderValue(row: DictItem) {
 }
 
 .type-card {
-  flex: 0 0 380px;
+  flex: 0 0 400px;
 }
 
 .item-card {

@@ -53,6 +53,8 @@ export interface DictTypeSummaryDto {
   remark: string
   /** 1 内置 / 0 自定义 */
   systemFlag: number
+  /** 排序号（升序），后端列表已按 sort,id 排序 */
+  sort: number
   itemCount: number
   enabledCount: number
 }
@@ -84,6 +86,7 @@ export function toDictType(dto: DictTypeSummaryDto): DictTypeSummary {
     name: dto.dictName,
     remark: dto.remark ?? '',
     system: dto.systemFlag === 1,
+    sort: dto.sort ?? 0,
     itemCount: dto.itemCount,
     enabledCount: dto.enabledCount,
   }
@@ -99,20 +102,22 @@ export function toDictDetail(dto: DictTypeDetailDto): DictTypeDetail {
 
 /* ═══ 视图表单 → 后端请求体 ═══ */
 
-/** 类型新增表单 → POST 请求体（带 dictCode） */
+/** 类型新增表单 → POST 请求体（带 dictCode）；sort 传当前列表 max+1，后端另有兜底 */
 export function toTypeCreatePayload(form: DictTypeForm) {
   return {
     dictCode: form.type,
     dictName: form.name,
     remark: form.remark,
+    sort: Number(form.sort),
   }
 }
 
 /** 类型编辑表单 → PUT 请求体（不含 dictCode，定位走 URL 且 code 不可改） */
-export function toTypeUpdatePayload(form: Pick<DictTypeForm, 'name' | 'remark'>) {
+export function toTypeUpdatePayload(form: Pick<DictTypeForm, 'name' | 'remark' | 'sort'>) {
   return {
     dictName: form.name,
     remark: form.remark,
+    sort: Number(form.sort),
   }
 }
 
