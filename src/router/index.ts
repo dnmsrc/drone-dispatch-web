@@ -54,7 +54,8 @@ export const menuRoutes: RouteRecordRaw[] = [
   {
     path: 'schedule',
     component: () => import('@/views/schedule/index.vue'),
-    meta: { title: '档期管理', icon: 'Calendar' },
+    // 配置四域之档期域：全局接单时段/预约窗口/每日档期，仅管理员可写（页面内按钮再按 isAdmin 收口）
+    meta: { title: '档期管理', icon: 'Calendar', roles: ['ADMIN'] },
   },
   {
     path: 'user/list',
@@ -82,14 +83,22 @@ export const menuRoutes: RouteRecordRaw[] = [
     meta: { title: '收款账户', icon: 'CreditCard' },
   },
   {
-    path: 'system/config',
-    component: () => import('@/views/system/config.vue'),
-    meta: { title: '业务配置', icon: 'Setting' },
+    path: 'pricing',
+    component: () => import('@/views/pricing/index.vue'),
+    // 配置四域之计价域：带价格/影响下单金额的规则（架次/时长/附加/图案/定制/退款），仅管理员
+    meta: { title: '计价管理', icon: 'PriceTag', roles: ['ADMIN'] },
+  },
+  {
+    path: 'payment-config',
+    component: () => import('@/views/payment-config/index.vue'),
+    // 配置四域之支付域：只管「钱怎么付」（支付时限；渠道/收款账户为即将上线骨架），仅管理员
+    meta: { title: '支付管理', icon: 'Wallet', roles: ['ADMIN'] },
   },
   {
     path: 'system/dict',
     component: () => import('@/views/system/dict.vue'),
-    meta: { title: '字典管理', icon: 'Collection' },
+    // 配置四域之字典域：收窄为不带价的系统级纯枚举（如 order_status），仅管理员
+    meta: { title: '字典管理', icon: 'Collection', roles: ['ADMIN'] },
   },
   {
     path: 'user/profile',
