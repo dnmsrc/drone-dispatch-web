@@ -10,7 +10,14 @@
 // ─────────────────────────────────────────────────────────────
 import { orderStore } from '../order/mock'
 import { BUILTIN_HOLIDAYS } from './constants'
-import { DEFAULT_SLOTS, daysInMonth, fmtDate } from './slot'
+import {
+  DEFAULT_SLOTS,
+  daysInMonth,
+  findOverlap,
+  fmtDate,
+  MAX_SLOTS_PER_DAY,
+  normSlotId,
+} from './slot'
 import type { SaveSlotsParams, SaveSlotsResult, ScheduleCell, SlotId } from './types'
 
 /* ═══ 档期可写配置（真接口为持久化存储；静态版放内存）═══ */
@@ -26,8 +33,11 @@ interface DayConfig {
 /** key = YYYY-MM-DD，仅记录被单独改过的日子，未配置的日期走默认 */
 const scheduleStore: Map<string, DayConfig> = new Map()
 
-/** 默认接单时段（可被接口下发覆盖；静态版恒定） */
+/** 默认接单时段（可被全局档期设置接口下发覆盖；初始取 DEFAULT_SLOTS） */
 let defaultSlots: SlotId[] = DEFAULT_SLOTS.slice()
+
+/** 预约窗口（天）：用户最多可预约未来 N 天内的表演，范围 7-365（全局档期设置） */
+let bookingWindowDays = 60
 
 /* ═══ 从订单派生预订情况 ═══ */
 /** 计入档期占用的订单状态（已取消 / 已退款 / 已完成的历史单不再占未来名额） */
@@ -164,6 +174,54 @@ export function setClosed(date: string, closed: boolean): { ok: boolean; reason?
 export function resetScheduleStore(): void {
   scheduleStore.clear()
   defaultSlots = DEFAULT_SLOTS.slice()
+  bookingWindowDays = 60
+}
+
+/* ═══ 全局档期设置（等价 GET/PUT /admin/schedule/global）═══ */
+
+/** 全局档期设置（默认接单时段 + 预约窗口） */
+export interface GlobalSchedule {
+  defaultSlots: SlotId[]
+  bookingWindowDays: number
+}
+
+/** 读取全局档期设置（等价 GET /admin/schedule/global，返回副本） */
+export function getGlobalSchedule(): GlobalSchedule {
+  return { defaultSlots: defaultSlots.slice(), bookingWindowDays }
+}
+
+/**
+ * 保存全局档期设置（等价 PUT /admin/schedule/global）。
+ * 服务端 validateDefaultSlots 同口径校验：
+ *   整点区间、非空、最多 12 段、去重、时段不得重叠（首尾相接合法）；
+ *   预约窗口范围 7-365。校验失败抛 Error，通过后写入内存并影响后续未单独配置的日期。
+ */
+export function saveGlobalSchedule(input: {
+  defaultSlots?: SlotId[]
+  bookingWindowDays?: number
+}): GlobalSchedule {
+  if (input.bookingWindowDays != null) {
+    const n = Number(input.bookingWindowDays)
+    if (!Number.isFinite(n) || n < 7 || n > 365) {
+      throw new Error('预约窗口需在 7-365 天之间')
+    }
+    bookingWindowDays = n
+  }
+  if (input.defaultSlots !== undefined) {
+    const slots = [...new Set((input.defaultSlots ?? []).map(normSlotId).filter(Boolean))].sort()
+    if (!slots.length) throw new Error('默认接单时段不能为空')
+    if (slots.length > MAX_SLOTS_PER_DAY) {
+      throw new Error(`默认接单时段最多 ${MAX_SLOTS_PER_DAY} 段`)
+    }
+    const overlap = findOverlap(slots as SlotId[])
+    if (overlap) {
+      throw new Error(
+        `默认时段「${overlap[0]}」与「${overlap[1]}」重叠：同一时间只能接一单，请改成不重叠的区间`,
+      )
+    }
+    defaultSlots = slots as SlotId[]
+  }
+  return getGlobalSchedule()
 }
 
 /** 今天 YYYY-MM-DD（透传 format，避免页面重复取） */

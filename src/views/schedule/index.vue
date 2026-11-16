@@ -12,14 +12,23 @@
 // ─────────────────────────────────────────────────────────────
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, ArrowRight, Check } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, Check, Setting } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { LEGENDS, WEEK_HEADERS } from './constants'
 import { fmtDate, monthLeadOffset, previewRanges, shortSlot } from './slot'
-import { queryMonth, saveHoliday, saveSlots, setClosed, today } from './mock'
+import {
+  getGlobalSchedule,
+  queryMonth,
+  saveGlobalSchedule,
+  saveHoliday,
+  saveSlots,
+  setClosed,
+  today,
+} from './mock'
 import type { ScheduleCell, SlotId } from './types'
 import DayDetailDialog from './components/DayDetailDialog.vue'
 import BulkSlotsDialog from './components/BulkSlotsDialog.vue'
+import GlobalScheduleDialog from './components/GlobalScheduleDialog.vue'
 
 const auth = useAuthStore()
 const todayStr = today()
@@ -313,6 +322,32 @@ function cellClass(cell: ScheduleCell | null): Record<string, boolean> | string 
 }
 
 onMounted(() => void load())
+
+/* ═══ 全局档期设置（默认时段 + 预约窗口，从原业务配置迁入档期域）═══ */
+const globalDialog = ref(false)
+const globalInitial = ref<{ defaultSlots: SlotId[]; bookingWindowDays: number }>({
+  defaultSlots: [],
+  bookingWindowDays: 60,
+})
+
+function openGlobal(): void {
+  globalInitial.value = getGlobalSchedule()
+  globalDialog.value = true
+}
+
+function onSaveGlobal(payload: { defaultSlots: SlotId[]; bookingWindowDays: number }): void {
+  acting.value = true
+  try {
+    saveGlobalSchedule(payload)
+    ElMessage.success('全局档期设置已保存')
+    globalDialog.value = false
+    void load()
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '保存失败')
+  } finally {
+    acting.value = false
+  }
+}
 </script>
 
 <template>
@@ -339,6 +374,16 @@ onMounted(() => void load())
           @click="toggleMulti"
         >
           {{ multi ? '退出多选' : '多选' }}
+        </el-button>
+        <el-button
+          v-if="auth.isAdmin"
+          type="primary"
+          plain
+          :icon="Setting"
+          style="margin-left: 10px"
+          @click="openGlobal"
+        >
+          全局档期设置
         </el-button>
       </div>
       <div class="legend">
@@ -455,6 +500,14 @@ onMounted(() => void load())
       :initial-slots="bulkInitialSlots"
       :acting="acting"
       @submit="submitBulk"
+    />
+
+    <!-- 全局档期设置弹窗（默认接单时段 + 预约窗口） -->
+    <GlobalScheduleDialog
+      v-model="globalDialog"
+      :initial="globalInitial"
+      :acting="acting"
+      @save="onSaveGlobal"
     />
   </div>
 </template>
