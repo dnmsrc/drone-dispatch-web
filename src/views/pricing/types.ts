@@ -1,15 +1,18 @@
 // ─────────────────────────────────────────────────────────────
-// 计价管理 · 接口契约类型（字段名与原型 Mock v7 的 pricingRules 完全一致）
+// 计价管理 · 视图类型（页面与表格/弹窗消费的领域结构，字段名沿用原型 pricingRules 语义）
 //
-// 对应原型接口（docs/配置模块重构-前后端交付说明.md §3.1）：
-//   GET /api/admin/pricing                 全量（含停用项），按 sort 升序
-//   PUT /api/admin/pricing/:group          整组保存（group ∈ PRICING_GROUPS）
-//   PUT /api/admin/pricing/:group/:id      单项启停 / 行内编辑
-//   PUT /api/admin/pricing/custom/scalars  两个定制标量（0-100000）
+// 对应后端真实接口（drone-dispatch-server PricingController，/api/pricing）：
+//   GET /pricing/groups          全部分组视图（含停用项），适配层聚合为下方五个数组
+//   GET /pricing/custom          两个定制标量（customTextPrice/customLogoPrice）
+//   PUT /pricing/rules/:id       单项编辑 / 启停（字段未传即保留原值；开关仅传 status）
+//   PUT /pricing/custom          保存两个定制标量（范围 0-100000）
+//
+// 后端通用行（itemKey/itemLabel/itemValue/extra + 单数分组名 tier/duration/...）
+// 与本文件领域字段（drones/price/desc 等 + 复数分组 tiers/durations/...）的双向映射，
+// 统一收口在 src/api/pricing.ts，本文件只表达页面视角，不耦合后端列名。
 //
 // 边界：本域只管「带价格 / 影响下单金额」的规则；不带价的系统枚举归字典管理，
-// 「钱怎么付」（支付时限/渠道）归支付管理。后端领域接口未就绪前由 ./mock 提供同构数据。
-// TODO(server): 后端实现 PricingController 后，仅替换 ./mock 的调用，页面与本类型不改名。
+// 「钱怎么付」（支付时限/渠道）归支付管理。
 // ─────────────────────────────────────────────────────────────
 
 /** 启停状态：1 启用 / 0 停用（停用后 H5 立即拉取不到该项） */
@@ -87,7 +90,7 @@ export interface CustomPricing {
 /** 五个规则数组分组的 key（顺序固定，即后端 PRICING_GROUPS） */
 export type PricingGroup = 'tiers' | 'durations' | 'addons' | 'patterns' | 'refundRules'
 
-/** GET /admin/pricing 的全量响应（管理端视图，含停用项） */
+/** 计价管理全量视图（管理端，含停用项；由 /pricing/groups + /pricing/custom 聚合而来） */
 export interface PricingRules {
   tiers: PriceTier[]
   durations: PriceDuration[]
@@ -118,5 +121,5 @@ export const PRICING_GROUP_META: Record<PricingGroup, { name: string; desc: stri
   },
 }
 
-/** 定制标量字段的范围约束（与服务端 custom/scalars 校验一致：0-100000） */
+/** 定制标量字段的范围约束（与服务端 PUT /pricing/custom 校验一致：0-100000） */
 export const CUSTOM_PRICE_LIMITS = { min: 0, max: 100000 } as const

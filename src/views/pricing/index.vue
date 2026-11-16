@@ -5,15 +5,22 @@
 // 集中维护所有「带价格 / 影响下单金额」的规则，6 个 Tab：
 //   架次档位 / 表演时长 / 附加服务 / 预设图案 / 定制收费 / 退款阶梯。
 // 规则数组项带 status（1 启用 / 0 停用）：停用后 H5 立即拉取不到该项。
-// 数据走本地 mock（./mock，同构原型 GET/PUT /admin/pricing 系列）；
-// 后端 PricingController 就绪后只替换 mock 调用，本页与 types 不改名。
-// 权限：非 ADMIN 只读（开关、保存按钮 disabled），路由 meta.roles 同步限定 ADMIN。
+// 数据走真实后端 /api/pricing（@/api/pricing 完成 DTO 适配）：
+//   加载 GET /pricing/groups + /pricing/custom 聚合；单项编辑/启停 PUT /pricing/rules/:id；
+//   定制收费 PUT /pricing/custom。写操作成功后重新拉取刷新，失败由 http 拦截器统一弹错。
+// 权限：非 ADMIN 只读（开关、保存按钮 disabled），路由 meta.roles 同步限定 ADMIN，
+//   后端写接口另有 Service 层 ADMIN 闸门兜底（403）。
 // ─────────────────────────────────────────────────────────────
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { fmtMoney } from '@/utils/format'
-import { getPricing, saveCustomScalars, saveItem } from './mock'
+import {
+  getPricingRules,
+  saveCustomFees,
+  toRuleUpdatePayload,
+  updatePricingRule,
+} from '@/api/pricing'
 import {
   CUSTOM_PRICE_LIMITS,
   PRICING_GROUP_META,
@@ -52,33 +59,44 @@ const customForm = reactive<CustomPricing>({ customTextPrice: 0, customLogoPrice
 
 async function load(): Promise<void> {
   loading.value = true
-  // 模拟异步，观感同其它列表页（接真接口后删掉这行）
-  await new Promise((r) => window.setTimeout(r, 200))
-  const d = getPricing()
-  Object.assign(data, emptyRules(), d)
-  customForm.customTextPrice = data.custom.customTextPrice ?? 0
-  customForm.customLogoPrice = data.custom.customLogoPrice ?? 0
-  loading.value = false
+  try {
+    // http 层已剥离 Result 信封并在失败时全局弹错；这里只负责取数与回填
+    const d = await getPricingRules()
+    Object.assign(data, emptyRules(), d)
+    customForm.customTextPrice = data.custom.customTextPrice ?? 0
+    customForm.customLogoPrice = data.custom.customLogoPrice ?? 0
+  } catch {
+    // 失败时归位空骨架，避免残留上一次分组的数据
+    Object.assign(data, emptyRules())
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(() => void load())
 
-/* ═══ 启停：单项接口（只传 status），失败回滚开关 ═══ */
-function toggle(group: PricingGroup, row: { id: string; status: RuleStatus }, val: boolean): void {
-  const prev = row.status
-  row.status = val ? 1 : 0
+/* ═══ 启停：单项接口（只传 status），成功后才更新本地状态，失败开关自动回弹 ═══ */
+async function toggle(
+  group: PricingGroup,
+  row: { id: string; status: RuleStatus },
+  val: boolean,
+): Promise<void> {
+  const next: RuleStatus = val ? 1 : 0
   try {
-    saveItem(group, row.id, { status: row.status })
+    // 适配层只下发 { status }，符合后端「开关仅传 status」约定；失败由 http 拦截器统一弹错
+    await updatePricingRule(row.id, toRuleUpdatePayload(group, { status: next }))
+    // 请求成功再改本地行状态；失败则不更新，受控 el-switch 保持原态（视觉回弹）
+    row.status = next
     ElMessage.success(val ? '已启用，用户端可选' : '已停用，用户端将不再展示该项')
-  } catch (err) {
-    row.status = prev
-    ElMessage.error(err instanceof Error ? err.message : '操作失败')
+    void load()
+  } catch {
+    // 失败提示已由拦截器处理，这里不额外弹错、不改 row.status
   }
 }
 
 /** el-switch change 事件归一为布尔（其 $event 类型为 string|number|boolean） */
 function onToggle(group: PricingGroup, row: AnyRule, val: string | number | boolean): void {
-  toggle(group, row, Boolean(val))
+  void toggle(group, row, Boolean(val))
 }
 
 /* ═══ 行内编辑弹窗（字段随分区动态变化）═══ */
@@ -101,40 +119,41 @@ function openEdit(group: PricingGroup, row: AnyRule): void {
 /** 数字字段在提交前归一（与原型 saveEdit 同一组键） */
 const NUMERIC_FIELDS = ['drones', 'price', 'minutes', 'extra', 'minHours', 'ratio'] as const
 
-function saveEdit(): void {
+async function saveEdit(): Promise<void> {
   if (!editingGroup) return
-  const payload: Record<string, unknown> = {
-    ...editForm.value,
-    status: editForm.value.status ? 1 : 0,
-  }
+  const form: Record<string, unknown> = { ...editForm.value }
+  // 弹窗里 status 是布尔 switch，先归一为 1/0，再交给适配层按分组翻译字段
+  form.status = editForm.value.status ? 1 : 0
   for (const k of NUMERIC_FIELDS) {
-    if (payload[k] !== undefined) payload[k] = Number(payload[k])
+    if (form[k] !== undefined) form[k] = Number(form[k])
   }
   saving.value = true
   try {
-    saveItem(editingGroup, editingId, payload)
+    // 适配层只带当前分组会编辑的键，未编辑字段不下发，后端按 null 保留原值
+    await updatePricingRule(editingId, toRuleUpdatePayload(editingGroup, form))
     ElMessage.success('已保存')
     editDialog.value = false
     void load()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '保存失败')
+  } catch {
+    // 失败（400 校验/403 角色/网络异常）由 http 拦截器统一弹错，弹窗保留便于修改重试
   } finally {
     saving.value = false
   }
 }
 
-/* ═══ 定制收费（两个标量，0-100000）═══ */
-function saveCustom(): void {
+/* ═══ 定制收费（两个标量，0-100000，后端范围校验兜底）═══ */
+async function saveCustom(): Promise<void> {
   saving.value = true
   try {
-    const custom = saveCustomScalars({
+    await saveCustomFees({
       customTextPrice: Number(customForm.customTextPrice),
       customLogoPrice: Number(customForm.customLogoPrice),
     })
-    data.custom = { ...custom }
     ElMessage.success('定制收费已保存')
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '保存失败')
+    // 后端返回 Void，重新拉取以服务端值为准回填（含默认值/归一结果）
+    void load()
+  } catch {
+    // 越界 400、403、网络异常等由 http 拦截器统一弹错，表单保留便于修改重试
   } finally {
     saving.value = false
   }
