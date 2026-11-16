@@ -17,9 +17,9 @@ import prettier from 'eslint-config-prettier'
 import globals from 'globals'
 
 export default tseslint.config(
-  // 全局忽略：产物、覆盖率、依赖不参与 lint
+  // 全局忽略：产物、覆盖率、依赖、本地冒烟脚本（.smoke 已在 .gitignore 忽略，不入库）不参与 lint
   {
-    ignores: ['dist/**', 'dev-dist/**', 'coverage/**', 'node_modules/**'],
+    ignores: ['dist/**', 'dev-dist/**', 'coverage/**', 'node_modules/**', '.smoke/**'],
   },
 
   // JS 基础推荐规则
