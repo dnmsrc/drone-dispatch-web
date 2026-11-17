@@ -4,34 +4,42 @@
 //
 // 只管「钱怎么付」：支付时限（本期可用）、在线渠道开关与收款账户（即将上线骨架）。
 // 不含任何计价字段——带价格的规则在「计价管理」维护（硬边界）。
-// 数据走本地 mock（./mock，同构原型 GET/PUT /admin/payment-config）；
-// 后端 PaymentController 就绪后只替换 mock 调用。
+// 数据走真实后端 /api/payment-config（@/api/payment-config 完成 DTO 适配）：
+//   加载 GET /payment-config；保存 PUT /payment-config（仅 ADMIN，后端 Service 层闸门兜底 403）。
+//   写成功后重新拉取刷新；失败由 http 拦截器统一弹错，本地不做乐观更新。
 // 权限：非 ADMIN 只读（输入/保存 disabled），路由 meta.roles 同步限定 ADMIN。
 // ─────────────────────────────────────────────────────────────
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
-import { getPaymentConfig, savePaymentConfig } from './mock'
-import { PAY_EXPIRE_LIMITS } from './types'
+import { getPaymentConfig, savePaymentConfig } from '@/api/payment-config'
+import { DEFAULT_PAY_EXPIRE_MINUTES, PAY_EXPIRE_LIMITS } from './types'
 
 const auth = useAuthStore()
 
 const loading = ref(false)
 const saving = ref(false)
-const form = reactive<{ payExpireMinutes: number }>({ payExpireMinutes: 15 })
+const form = reactive<{ payExpireMinutes: number }>({
+  payExpireMinutes: DEFAULT_PAY_EXPIRE_MINUTES,
+})
 
 async function load(): Promise<void> {
   loading.value = true
-  // 模拟异步（接真接口后删掉这行）
-  await new Promise((r) => window.setTimeout(r, 200))
-  const d = getPaymentConfig()
-  form.payExpireMinutes = d.payExpireMinutes ?? 15
-  loading.value = false
+  try {
+    // http 层已剥离 Result 信封并在失败时全局弹错；适配层对空值/非法值回退缺省 15
+    const d = await getPaymentConfig()
+    form.payExpireMinutes = d.payExpireMinutes
+  } catch {
+    // 失败时保持缺省值，避免残留/出现空值；错误提示已由拦截器统一处理
+    form.payExpireMinutes = DEFAULT_PAY_EXPIRE_MINUTES
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(() => void load())
 
-function save(): void {
+async function save(): Promise<void> {
   const n = Number(form.payExpireMinutes)
   if (!Number.isFinite(n) || n < PAY_EXPIRE_LIMITS.min || n > PAY_EXPIRE_LIMITS.max) {
     ElMessage.warning('支付时限需在 1-120 分钟之间')
@@ -39,10 +47,12 @@ function save(): void {
   }
   saving.value = true
   try {
-    savePaymentConfig({ payExpireMinutes: n })
+    await savePaymentConfig({ payExpireMinutes: n })
     ElMessage.success('支付配置已保存')
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '保存失败')
+    // 以服务端为准重新拉取（后端会回显落库值），不做本地乐观更新
+    await load()
+  } catch {
+    // 失败（400 校验/403 角色/网络异常）由 http 拦截器统一弹错，表单保留原值便于重试
   } finally {
     saving.value = false
   }
