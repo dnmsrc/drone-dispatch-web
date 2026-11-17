@@ -19,10 +19,12 @@ import {
   getPricingRules,
   saveCustomFees,
   toRuleUpdatePayload,
+  updateGroupSwitch,
   updatePricingRule,
 } from '@/api/pricing'
 import {
   CUSTOM_PRICE_LIMITS,
+  DEFAULT_GROUP_ENABLED,
   PRICING_GROUP_META,
   PRICING_GROUPS,
   type CustomPricing,
@@ -40,6 +42,8 @@ const auth = useAuthStore()
 
 const loading = ref(false)
 const saving = ref(false)
+/** 组总闸请求中的分组（防止快速连点），用于开关 loading 态 */
+const groupSwitching = ref<PricingGroup | ''>('')
 const activeTab = ref<PricingGroup | 'custom'>('tiers')
 
 /** 空骨架（Object.assign 前先归位，避免残留上一次分组的数据） */
@@ -51,6 +55,8 @@ function emptyRules(): PricingRules {
     patterns: [],
     refundRules: [],
     custom: { customTextPrice: 0, customLogoPrice: 0 },
+    // 组总闸 fail-open 全开，聚合后以后端值覆盖
+    groupEnabled: { ...DEFAULT_GROUP_ENABLED },
   }
 }
 
@@ -97,6 +103,30 @@ async function toggle(
 /** el-switch change 事件归一为布尔（其 $event 类型为 string|number|boolean） */
 function onToggle(group: PricingGroup, row: AnyRule, val: string | number | boolean): void {
   void toggle(group, row, Boolean(val))
+}
+
+/* ═══ 分组总闸：整组在 H5 是否可选（与行级 status 两层，关组不改任何行 status）═══ */
+async function toggleGroup(group: PricingGroup, val: boolean): Promise<void> {
+  groupSwitching.value = group
+  try {
+    // 只写 sys_config 布尔；失败由 http 拦截器弹错，且不改本地值，受控开关自动回弹
+    await updateGroupSwitch(group, val)
+    data.groupEnabled[group] = val
+    ElMessage.success(
+      val
+        ? `已开启「${PRICING_GROUP_META[group].name}」，用户端恢复展示该组`
+        : `已关闭「${PRICING_GROUP_META[group].name}」，用户端将整组隐藏`,
+    )
+  } catch {
+    // 失败提示已由拦截器处理；不改 groupEnabled，开关视觉回弹
+  } finally {
+    groupSwitching.value = ''
+  }
+}
+
+/** 组总闸 el-switch change 归一为布尔 */
+function onGroupToggle(group: PricingGroup, val: string | number | boolean): void {
+  void toggleGroup(group, Boolean(val))
 }
 
 /* ═══ 行内编辑弹窗（字段随分区动态变化）═══ */
@@ -195,13 +225,41 @@ function durationExtraText(extra: number): string {
       <el-tabs v-model="activeTab">
         <!-- 1. 架次档位 -->
         <el-tab-pane v-for="g in PRICING_GROUPS" :key="g" :name="g">
-          <template #label>{{ PRICING_GROUP_META[g].name }}</template>
+          <template #label>
+            <span class="tab-label">
+              {{ PRICING_GROUP_META[g].name }}
+              <el-switch
+                :model-value="data.groupEnabled[g]"
+                :loading="groupSwitching === g"
+                :disabled="!auth.isAdmin"
+                size="small"
+                class="group-switch"
+                @click.stop
+                @change="onGroupToggle(g, $event)"
+              />
+            </span>
+          </template>
           <div class="pane-head">
             <span class="pane-desc">{{ PRICING_GROUP_META[g].desc }}</span>
           </div>
+          <!-- 组总闸关闭警示：H5 整组隐藏，但组内各行 status 不变 -->
+          <el-alert
+            v-if="!data.groupEnabled[g]"
+            class="group-off-alert"
+            type="warning"
+            :closable="false"
+            show-icon
+            title="该分组总闸已关闭：用户端 H5 将整组隐藏；组内各项的启停状态保持不变，重新打开后恢复。"
+          />
 
           <!-- 架次档位 -->
-          <el-table v-if="g === 'tiers'" :data="data.tiers" border size="small">
+          <el-table
+            v-if="g === 'tiers'"
+            :data="data.tiers"
+            border
+            size="small"
+            :class="{ 'group-off-table': !data.groupEnabled.tiers }"
+          >
             <el-table-column label="架次" width="120">
               <template #default="{ row }">{{ row.drones }} 架</template>
             </el-table-column>
@@ -236,7 +294,13 @@ function durationExtraText(extra: number): string {
           </el-table>
 
           <!-- 表演时长 -->
-          <el-table v-else-if="g === 'durations'" :data="data.durations" border size="small">
+          <el-table
+            v-else-if="g === 'durations'"
+            :data="data.durations"
+            border
+            size="small"
+            :class="{ 'group-off-table': !data.groupEnabled.durations }"
+          >
             <el-table-column label="时长" min-width="180">
               <template #default="{ row }"> {{ row.label }}（{{ row.minutes }} 分钟） </template>
             </el-table-column>
@@ -273,7 +337,13 @@ function durationExtraText(extra: number): string {
           </el-table>
 
           <!-- 附加服务 -->
-          <el-table v-else-if="g === 'addons'" :data="data.addons" border size="small">
+          <el-table
+            v-else-if="g === 'addons'"
+            :data="data.addons"
+            border
+            size="small"
+            :class="{ 'group-off-table': !data.groupEnabled.addons }"
+          >
             <el-table-column prop="label" label="服务名称" min-width="200" />
             <el-table-column label="加价" width="150">
               <template #default="{ row }">
@@ -305,7 +375,13 @@ function durationExtraText(extra: number): string {
           </el-table>
 
           <!-- 预设图案 -->
-          <el-table v-else-if="g === 'patterns'" :data="data.patterns" border size="small">
+          <el-table
+            v-else-if="g === 'patterns'"
+            :data="data.patterns"
+            border
+            size="small"
+            :class="{ 'group-off-table': !data.groupEnabled.patterns }"
+          >
             <el-table-column prop="label" label="图案名称" min-width="200" />
             <el-table-column label="价格" width="150">
               <template #default>
@@ -337,7 +413,13 @@ function durationExtraText(extra: number): string {
           </el-table>
 
           <!-- 退款阶梯 -->
-          <el-table v-else :data="data.refundRules" border size="small">
+          <el-table
+            v-else
+            :data="data.refundRules"
+            border
+            size="small"
+            :class="{ 'group-off-table': !data.groupEnabled.refundRules }"
+          >
             <el-table-column label="距表演时间下限（小时）" width="200">
               <template #default="{ row }">≥ {{ row.minHours }} 小时</template>
             </el-table-column>
@@ -540,5 +622,26 @@ function durationExtraText(extra: number): string {
   color: #909399;
   line-height: 1.4;
   margin-top: 4px;
+}
+
+/* Tab 标签内的分组总闸：文字与开关并排，阻止冒泡避免点开关误切 Tab */
+.tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.group-switch {
+  /* 开关不参与 Tab 文字选中态的颜色变化，保持控件自身配色 */
+  color: inherit;
+}
+
+.group-off-alert {
+  margin-bottom: 12px;
+}
+
+/* 组总闸关闭时整表降低不透明度做视觉区分；行级开关仍可操作，不真正禁用 */
+.group-off-table {
+  opacity: 0.55;
 }
 </style>

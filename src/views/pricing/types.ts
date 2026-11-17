@@ -90,6 +90,15 @@ export interface CustomPricing {
 /** 五个规则数组分组的 key（顺序固定，即后端 PRICING_GROUPS） */
 export type PricingGroup = 'tiers' | 'durations' | 'addons' | 'patterns' | 'refundRules'
 
+/**
+ * 五个规则组的「分组总闸」状态（管理端视图）。
+ *
+ * 与行级 status 是两层：组总闸管「H5 整组是否可选」，行 status 管组内单项；
+ * 关组不改任何行 status，后端在 H5 装配处对关闭组直接短路为空数组。
+ * 后端 fail-open：sys_config 缺键/非法值一律按 true，前端兜底默认也全开，保证旧后端无此字段时行为不变。
+ */
+export type PricingGroupEnabled = Record<PricingGroup, boolean>
+
 /** 计价管理全量视图（管理端，含停用项；由 /pricing/groups + /pricing/custom 聚合而来） */
 export interface PricingRules {
   tiers: PriceTier[]
@@ -98,6 +107,17 @@ export interface PricingRules {
   patterns: PricePattern[]
   refundRules: RefundRule[]
   custom: CustomPricing
+  /** 五个规则组各自的总闸状态（定制收费是标量，无总闸） */
+  groupEnabled: PricingGroupEnabled
+}
+
+/** 分组总闸 fail-open 默认值：全开（后端缺字段或老版本时使用） */
+export const DEFAULT_GROUP_ENABLED: PricingGroupEnabled = {
+  tiers: true,
+  durations: true,
+  addons: true,
+  patterns: true,
+  refundRules: true,
 }
 
 /** 五个分组的固定顺序与中文名（Tab 顺序、弹窗标题共用） */

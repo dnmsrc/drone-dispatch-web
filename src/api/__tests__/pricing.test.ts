@@ -7,8 +7,9 @@
 //   - 通用行按分组映射到领域字段（见各 toXxxRow）
 //   - id number → string；itemValue DECIMAL（可空）→ number，空值兜底 0
 //   - status 仅 0 为停用，其余（含异常值）按启用 1 兜底
+//   - 分组总闸 enabled：仅明确 false 为关，字段缺失（老版本后端）fail-open 按全开兜底
 //   - 反向请求体只带当前分组会编辑的键，未编辑字段不下发（后端按 null 保留原值）
-// 网络类函数（getPricingRules 等）依赖 axios，不在此覆盖（由后端 curl 联调与页面冒烟验证）。
+// 网络类函数（getPricingRules / updateGroupSwitch 等）依赖 axios，不在此覆盖（由后端 curl 联调与页面冒烟验证）。
 // ─────────────────────────────────────────────────────────────
 import { describe, expect, it } from 'vitest'
 import {
@@ -16,12 +17,14 @@ import {
   toBackendGroup,
   toCustomPricing,
   toDurationRow,
+  toGroupEnabled,
   toGroupRows,
   toPatternRow,
   toRefundRow,
   toRuleUpdatePayload,
   toTierRow,
   toViewGroup,
+  type PricingGroupDto,
   type PricingRuleDto,
 } from '../pricing'
 
@@ -274,6 +277,58 @@ describe('toRuleUpdatePayload · 视图编辑模型 → 后端请求体', () => 
     const payload = toRuleUpdatePayload('tiers', { drones: '300' as unknown as number })
     expect(payload.itemKey).toBe('300')
     expect(typeof payload.itemKey).toBe('string')
+  })
+})
+
+describe('toGroupEnabled · 分组总闸适配', () => {
+  /** 构造仅含 groupCode/enabled 的最小分组 DTO */
+  function groupDto(groupCode: string, enabled?: boolean): PricingGroupDto {
+    return { groupCode, enabled, items: [] }
+  }
+
+  it('各组 enabled 按后端单数分组名映射到前端复数分组', () => {
+    const result = toGroupEnabled([
+      groupDto('tier', true),
+      groupDto('duration', false),
+      groupDto('addon', true),
+      groupDto('pattern', false),
+      groupDto('refund', true),
+    ])
+    expect(result).toEqual({
+      tiers: true,
+      durations: false,
+      addons: true,
+      patterns: false,
+      refundRules: true,
+    })
+  })
+
+  it('enabled 字段缺失（老版本后端）时 fail-open 按全开兜底', () => {
+    const result = toGroupEnabled([groupDto('tier'), groupDto('addon')])
+    expect(result.tiers).toBe(true)
+    expect(result.addons).toBe(true)
+    // 后端未返回的分组也保持全开
+    expect(result.patterns).toBe(true)
+    expect(result.refundRules).toBe(true)
+  })
+
+  it('仅明确 false 为关；true、undefined 都按启用处理', () => {
+    expect(toGroupEnabled([groupDto('tier', false)]).tiers).toBe(false)
+    expect(toGroupEnabled([groupDto('tier', true)]).tiers).toBe(true)
+    expect(toGroupEnabled([groupDto('tier', undefined)]).tiers).toBe(true)
+  })
+
+  it('null/undefined 入参与未知分组：返回全开骨架且不抛错', () => {
+    const allOn = {
+      tiers: true,
+      durations: true,
+      addons: true,
+      patterns: true,
+      refundRules: true,
+    }
+    expect(toGroupEnabled(null)).toEqual(allOn)
+    expect(toGroupEnabled(undefined)).toEqual(allOn)
+    expect(toGroupEnabled([groupDto('unknown', false)])).toEqual(allOn)
   })
 })
 

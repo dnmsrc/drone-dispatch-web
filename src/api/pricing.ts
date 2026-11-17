@@ -1,14 +1,15 @@
 // ─────────────────────────────────────────────────────────────
 // 计价接口层 —— 对接后端 drone-dispatch-server PricingController（/api/pricing）
 //
-// 已对接接口（管理端 6 个端点，读接口登录即可、写接口仅 ADMIN，角色由 Service 层闸门控制）：
-//   GET  /pricing/groups          全部分组视图（含停用项，固定 tier/duration/addon/pattern/refund 顺序）
-//   GET  /pricing/groups/:group   单个分组视图（本页聚合用不到，预留按需拉取）
-//   PUT  /pricing/rules/:id       单项编辑 / 启停（字段为 null 保留原值；开关仅传 status 即可）
-//   GET  /pricing/custom          读两个定制标量（定制文字价 / LOGO 价）
-//   PUT  /pricing/custom          保存定制标量（传哪个改哪个，范围 0-100000）
+// 已对接接口（管理端，读接口登录即可、写接口仅 ADMIN，角色由 Service 层闸门控制）：
+//   GET  /pricing/groups                 全部分组视图（含停用项，每组带分组总闸 enabled）
+//   GET  /pricing/groups/:group          单个分组视图（本页聚合用不到，预留按需拉取）
+//   PUT  /pricing/rules/:id              单项编辑 / 启停（字段为 null 保留原值；开关仅传 status 即可）
+//   PUT  /pricing/groups/:group/enabled  分组总闸开/关（只改 sys_config 布尔，不改组内各行 status）
+//   GET  /pricing/custom                 读两个定制标量（定制文字价 / LOGO 价）
+//   PUT  /pricing/custom                 保存定制标量（传哪个改哪个，范围 0-100000）
 // 另：PUT /pricing/groups/:group 整组重建，本页只有单项编辑/启停，暂不消费，故不封装。
-// H5 只读的 /pricing/public、/pricing/refund-rules 属 H5 工程，不在本管理后台封装。
+// H5 只读的 /pricing/group-status、/pricing/public、/pricing/refund-rules 属 H5 工程，不在本管理后台封装。
 //
 // 后端 VO 是「分组 + 通用行」结构（PricingRuleVO 的 itemKey/itemLabel/itemValue/extra），
 // 与前端视图类型（PriceTier.drones/price/desc 等领域字段）不同，差异统一在本文件适配收口，
@@ -25,20 +26,23 @@
 //   3) id：后端自增 BIGINT(number)，前端按 string 使用（同 venue/dict 适配）；
 //   4) itemValue DECIMAL 序列化为 number（理论可空），Number()||0 兜底，保证 toFixed/百分比不炸；
 //      itemKey 里的整数（架次/分钟/小时）Number 归一；
-//   5) status 仅 0 为停用，其余（含异常值）按启用 1 兜底；
+//   5) 行 status 仅 0 为停用，其余（含异常值）按启用 1 兜底；
+//      分组总闸 enabled 仅明确 false 为关，字段缺失（老版本后端）fail-open 按全开兜底；
 //   6) 反向（编辑/启停）只下发当前分组实际编辑的字段，未编辑字段不带键 → 后端按 null 保留原值。
 // ─────────────────────────────────────────────────────────────
 import http from '@/utils/http'
-import type {
-  CustomPricing,
-  PriceAddon,
-  PriceDuration,
-  PricePattern,
-  PriceTier,
-  PricingGroup,
-  PricingRules,
-  RefundRule,
-  RuleStatus,
+import {
+  DEFAULT_GROUP_ENABLED,
+  type CustomPricing,
+  type PriceAddon,
+  type PriceDuration,
+  type PricePattern,
+  type PriceTier,
+  type PricingGroup,
+  type PricingGroupEnabled,
+  type PricingRules,
+  type RefundRule,
+  type RuleStatus,
 } from '@/views/pricing/types'
 
 /* ═══ 后端 VO 的 JSON 形态（字段名与后端 record 一一对应，勿改名）═══ */
@@ -63,9 +67,15 @@ export interface PricingRuleDto {
   status: number
 }
 
-/** 后端整组视图（PricingGroupVO） */
+/**
+ * 后端整组视图（PricingGroupVO：groupCode / enabled / items）。
+ * enabled 是分组总闸（sys_config 布尔，fail-open 缺省 true）；老版本后端可能不下发该字段，
+ * 适配层按 true 兜底，保证前端在后端未升级时行为不变。
+ */
 export interface PricingGroupDto {
   groupCode: string
+  /** 分组总闸：false 时该组在 H5 整组不下发，但管理端 items 仍全量返回 */
+  enabled?: boolean
   items: PricingRuleDto[]
 }
 
@@ -249,6 +259,22 @@ export function toRuleUpdatePayload(
   return payload
 }
 
+/* ═══ 分组总闸（组级开关）适配 ═══ */
+
+/**
+ * 后端分组数组 → 前端组总闸映射。
+ * 仅当后端明确下发 enabled=false 时记为关闭；字段缺失（老版本后端）按 fail-open 全开，
+ * 与后端 isGroupEnabled 的缺省语义保持一致。未知分组忽略。
+ */
+export function toGroupEnabled(groups: PricingGroupDto[] | null | undefined): PricingGroupEnabled {
+  const result: PricingGroupEnabled = { ...DEFAULT_GROUP_ENABLED }
+  for (const g of groups ?? []) {
+    const viewGroup = BACKEND_TO_VIEW_GROUP[g.groupCode]
+    if (viewGroup) result[viewGroup] = g.enabled !== false
+  }
+  return result
+}
+
 /* ═══ 计价 API ═══ */
 
 /** 空骨架（聚合前先归位，后端缺某个分组时该组保持空数组而非 undefined） */
@@ -260,6 +286,8 @@ function emptyPricingRules(custom: CustomPricing): PricingRules {
     patterns: [],
     refundRules: [],
     custom,
+    // 组总闸先 fail-open 全开，聚合到对应分组时再以后端值覆盖
+    groupEnabled: { ...DEFAULT_GROUP_ENABLED },
   }
 }
 
@@ -277,6 +305,8 @@ export async function getPricingRules(): Promise<PricingRules> {
   ])
 
   const result = emptyPricingRules(toCustomPricing(customDto))
+  // 先整体回填组总闸（含后端未返回某组时的 fail-open 兜底）
+  result.groupEnabled = toGroupEnabled(groups)
   for (const group of groups ?? []) {
     const viewGroup = BACKEND_TO_VIEW_GROUP[group.groupCode]
     if (!viewGroup) continue
@@ -314,6 +344,15 @@ export async function updatePricingRule(
   payload: PricingRuleUpdatePayload,
 ): Promise<void> {
   await http.put<void>(`/pricing/rules/${id}`, payload)
+}
+
+/**
+ * 分组总闸开 / 关（PUT /pricing/groups/{group}/enabled，仅 ADMIN）。
+ * 只改 sys_config 布尔，不触碰组内各行 status；成功返回 Void，调用方重新拉取刷新。
+ * 非法分组后端 400、非管理员 403、enabled 缺省 400，均由 http 拦截器统一弹错并 reject。
+ */
+export async function updateGroupSwitch(group: PricingGroup, enabled: boolean): Promise<void> {
+  await http.put<void>(`/pricing/groups/${toBackendGroup(group)}/enabled`, { enabled })
 }
 
 /** 读两个定制标量（GET /pricing/custom，缺失时后端给默认值 2000/5000） */
