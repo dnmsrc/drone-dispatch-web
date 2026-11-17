@@ -4,14 +4,13 @@
 //
 // 从原「业务配置」迁入档期域：维护全局默认接单时段 + 预约窗口。
 // 受控组件：v-model 控显隐；打开时由主页拉取当前全局设置后经 initial 传入。
-// 提交前前端先做与服务端 validateDefaultSlots 同口径的校验（整点/去重/条数/重叠/窗口范围），
-// 落库动作交回主页（接 schedule mock 的 saveGlobalSchedule，后端就绪后换 /schedule/global）。
+// 提交前前端先做与服务端 SlotRules 同口径的校验（整点/去重/条数/重叠/窗口范围），
+// 落库动作交回主页（主页调 PUT /schedule/global）。
 // ─────────────────────────────────────────────────────────────
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { findOverlap, fmtSlot, MAX_SLOTS_PER_DAY } from '../slot'
-import type { SlotId } from '../types'
-import type { GlobalSchedule } from '../mock'
+import type { GlobalSchedule, SlotId } from '../types'
 import SlotEditor from './SlotEditor.vue'
 
 const props = defineProps<{

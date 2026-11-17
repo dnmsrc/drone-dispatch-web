@@ -5,26 +5,27 @@
 // 月历式档期：月份切换 / 单选看详情并配置 / 多选批量配时段。
 // 写法按正式版规范分层：
 //   - 纯逻辑（时段重叠/日期/区间预览）→ ./slot.ts（带单测）
-//   - 静态数据与动作（按月查询、保存时段/特殊日/休整）→ ./mock.ts
+//   - 数据与动作（按月查询、全局设置、保存时段/特殊日/休整）→ @/api/schedule（真接口）
 //   - 单日详情、批量配置两个弹窗 → ./components（受控 v-model + emit）
-//   - 已订情况由 order 订单派生，档期页与订单页的「已订/满档」严格一致
-// TODO(server): 接 /admin/schedule 系列接口后只替换 mock.ts 的调用，UI 不动。
+//   - 已订情况由后端按订单实时统计（排除已取消/已退款），档期页与订单页口径一致
+// 已订保护：后端单日保存不校验「已订时段不可撤」，由 @/api/schedule 的 planSlotUpdates
+// 在提交前按当月已加载数据把已订时段并入（批量弹窗不展示各时段已订情况，需这层兜底）。
 // ─────────────────────────────────────────────────────────────
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, ArrowRight, Check, Setting } from '@element-plus/icons-vue'
+import { HttpError } from '@/utils/http'
 import { useAuthStore } from '@/stores/auth'
 import { LEGENDS, WEEK_HEADERS } from './constants'
-import { fmtDate, monthLeadOffset, previewRanges, shortSlot } from './slot'
+import { fmtDate, monthLeadOffset, previewRanges, shortSlot, today } from './slot'
 import {
   getGlobalSchedule,
   queryMonth,
+  saveDayNote,
   saveGlobalSchedule,
-  saveHoliday,
   saveSlots,
   setClosed,
-  today,
-} from './mock'
+} from '@/api/schedule'
 import type { ScheduleCell, SlotId } from './types'
 import DayDetailDialog from './components/DayDetailDialog.vue'
 import BulkSlotsDialog from './components/BulkSlotsDialog.vue'
@@ -50,12 +51,22 @@ const cells = computed<(ScheduleCell | null)[]>(() => {
 
 async function load(): Promise<void> {
   loading.value = true
-  // 模拟异步，观感同其它列表页（接真接口后删掉这行）
-  await new Promise((r) => window.setTimeout(r, 200))
-  const data = queryMonth(month.value)
-  days.value = data.days
-  defaultSlots.value = data.defaultSlots
-  loading.value = false
+  try {
+    // http 层已剥离 Result 信封并在失败时全局弹错；适配层已把后端 DTO 派生为视图 cell
+    const data = await queryMonth(month.value)
+    days.value = data.days
+    defaultSlots.value = data.defaultSlots
+  } catch {
+    // 失败时归位空月历，避免残留上一月数据
+    days.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+/** 当月已加载的 日期 → cell 索引（保存时段时做已订保护、单日动作复用） */
+function cellMap(): Map<string, ScheduleCell> {
+  return new Map(days.value.map((c) => [c.date, c]))
 }
 
 function shiftMonth(n: number): void {
@@ -149,9 +160,13 @@ async function selectRange(kind: 'month' | 'quarter' | 'year'): Promise<void> {
   const map = new Map<string, ScheduleCell>()
   loading.value = true
   try {
+    // 后端按月提供日历接口，跨月选择需逐月拉取（串行，月数有限）
     for (const mk of monthKeys) {
-      for (const c of queryMonth(mk).days) map.set(c.date, c)
+      const monthData = await queryMonth(mk)
+      for (const c of monthData.days) map.set(c.date, c)
     }
+  } catch {
+    // 拉取失败已由 http 拦截器弹错；已拿到的月份仍参与判断
   } finally {
     loading.value = false
   }
@@ -191,7 +206,8 @@ async function submitBulk(slots: SlotId[]): Promise<void> {
   acting.value = true
   try {
     const dates = [...selectedDates.value].sort()
-    const { blocked } = saveSlots({ dates, slots, mode: 'bulk' })
+    // 适配层逐日下发并做已订保护：已订时段强制保留（blocked 提示），与新时段冲突则整批中止
+    const { blocked } = await saveSlots({ dates, slots, mode: 'bulk' }, cellMap())
     if (blocked.length) {
       ElMessage.warning(`已更新 ${dates.length} 天；${blocked.length} 个时段因已有订单保持不变`)
     } else {
@@ -201,6 +217,11 @@ async function submitBulk(slots: SlotId[]): Promise<void> {
     multi.value = false
     selectedDates.value = new Set()
     await load()
+  } catch (err) {
+    // http 错误已由拦截器弹错；这里只补充适配层本地校验（已订时段与新时段重叠）的提示
+    if (!(err instanceof HttpError)) {
+      ElMessage.error(err instanceof Error ? err.message : '保存失败')
+    }
   } finally {
     acting.value = false
   }
@@ -242,67 +263,99 @@ async function reloadAndClose(): Promise<void> {
   if (date) selected.value = days.value.find((c) => c.date === date) ?? null
 }
 
-function onSaveSlots(slots: SlotId[]): void {
+async function onSaveSlots(slots: SlotId[]): Promise<void> {
   if (!selected.value) return
+  const date = selected.value.date
   acting.value = true
+  let ok = false
   try {
-    const { blocked } = saveSlots({ dates: [selected.value.date], slots, mode: 'single' })
+    // 单日保存同样过已订保护：弹窗里已订时段不可删，这里再兜一层防历史脏数据
+    const { blocked } = await saveSlots({ dates: [date], slots, mode: 'single' }, cellMap())
     if (blocked.length) ElMessage.warning(`${blocked.length} 个时段因已有订单保持不变`)
     else ElMessage.success(slots.length ? '已保存当日接单时段' : '已设为当日不接单')
+    ok = true
+  } catch (err) {
+    if (!(err instanceof HttpError)) {
+      ElMessage.error(err instanceof Error ? err.message : '保存失败')
+    }
   } finally {
     acting.value = false
   }
-  void reloadAndClose()
+  // 成功才关弹窗刷新；失败保留编辑态便于修正重试
+  if (ok) void reloadAndClose()
 }
 
-function onResetSlots(): void {
+async function onResetSlots(): Promise<void> {
   if (!selected.value) return
+  const date = selected.value.date
   acting.value = true
+  let ok = false
   try {
-    saveSlots({ dates: [selected.value.date], slots: null, mode: 'single' })
+    await saveSlots({ dates: [date], slots: null, mode: 'single' }, cellMap())
     ElMessage.success('已恢复默认时段')
+    ok = true
+  } catch (err) {
+    if (!(err instanceof HttpError)) {
+      ElMessage.error(err instanceof Error ? err.message : '操作失败')
+    }
   } finally {
     acting.value = false
   }
-  void reloadAndClose()
+  if (ok) void reloadAndClose()
 }
 
-function onSaveHoliday(name: string): void {
+async function onSaveHoliday(name: string): Promise<void> {
   if (!selected.value) return
   if (!name.trim()) {
     ElMessage.warning('请输入特殊日名称')
     return
   }
+  const cell = selected.value
   acting.value = true
   try {
-    saveHoliday(selected.value.date, name.trim())
+    // 后端无独立备注接口，适配层复用 closed 端点只写 note 并保持当日休整状态不变
+    await saveDayNote(cell.date, name.trim(), cell.closed)
     ElMessage.success('已标注特殊日')
+  } catch {
+    // 失败由 http 拦截器统一弹错
   } finally {
     acting.value = false
   }
   void reloadAndClose()
 }
 
-function onClearHoliday(): void {
+async function onClearHoliday(): Promise<void> {
   if (!selected.value) return
+  const cell = selected.value
   acting.value = true
   try {
-    saveHoliday(selected.value.date, '')
+    await saveDayNote(cell.date, '', cell.closed)
     ElMessage.success('已取消标注')
+  } catch {
+    // 失败由 http 拦截器统一弹错
   } finally {
     acting.value = false
   }
   void reloadAndClose()
 }
 
-function onToggleClosed(closed: boolean): void {
+async function onToggleClosed(closed: boolean): Promise<void> {
   if (!selected.value) return
-  const res = setClosed(selected.value.date, closed)
-  if (!res.ok) {
-    ElMessage.warning(res.reason ?? '操作失败')
-    return
+  const cell = selected.value
+  acting.value = true
+  try {
+    // 适配层先按 cell.booked 拦「已有订单不能停工」，后端 setClosed 目前不校验该规则
+    const res = await setClosed(cell, closed)
+    if (!res.ok) {
+      ElMessage.warning(res.reason ?? '操作失败')
+      return
+    }
+    ElMessage.success(closed ? '已设为休整日' : '已恢复营业')
+  } catch {
+    // 失败由 http 拦截器统一弹错
+  } finally {
+    acting.value = false
   }
-  ElMessage.success(closed ? '已设为休整日' : '已恢复营业')
   void reloadAndClose()
 }
 
@@ -330,20 +383,29 @@ const globalInitial = ref<{ defaultSlots: SlotId[]; bookingWindowDays: number }>
   bookingWindowDays: 60,
 })
 
-function openGlobal(): void {
-  globalInitial.value = getGlobalSchedule()
-  globalDialog.value = true
+async function openGlobal(): Promise<void> {
+  try {
+    // 打开前拉一次服务端最新值，避免页面缓存与后端漂移
+    globalInitial.value = await getGlobalSchedule()
+    globalDialog.value = true
+  } catch {
+    // 失败由 http 拦截器统一弹错，不打开弹窗
+  }
 }
 
-function onSaveGlobal(payload: { defaultSlots: SlotId[]; bookingWindowDays: number }): void {
+async function onSaveGlobal(payload: {
+  defaultSlots: SlotId[]
+  bookingWindowDays: number
+}): Promise<void> {
   acting.value = true
   try {
-    saveGlobalSchedule(payload)
+    // 弹窗已做非空/上限/重叠/窗口范围校验；后端越界类错误由拦截器弹错
+    await saveGlobalSchedule(payload)
     ElMessage.success('全局档期设置已保存')
     globalDialog.value = false
-    void load()
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : '保存失败')
+    await load()
+  } catch {
+    // 失败保留弹窗便于修正
   } finally {
     acting.value = false
   }

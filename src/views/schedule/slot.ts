@@ -76,6 +76,11 @@ export function fmtDate(d: Date): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 }
 
+/** 今天 YYYY-MM-DD（本地时区；页面用它判「过去日期」，避免各处 new Date 重复） */
+export function today(): string {
+  return fmtDate(new Date())
+}
+
 /** YYYY-MM-DD 的下一天（处理跨月/跨年） */
 export function nextDayStr(dateStr: string): string {
   const [y, m, day] = dateStr.split('-').map(Number)

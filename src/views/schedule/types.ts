@@ -55,3 +55,13 @@ export interface DayEditState {
   slotsInput: SlotId[]
   holidayInput: string
 }
+
+/**
+ * 全局档期设置（GET/PUT /api/schedule/global）。
+ * defaultSlots 为全局默认可接单时段（单日未覆盖时沿用）；
+ * bookingWindowDays 为预约窗口天数（用户最多可预约未来 N 天），范围 7-365。
+ */
+export interface GlobalSchedule {
+  defaultSlots: SlotId[]
+  bookingWindowDays: number
+}
