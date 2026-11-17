@@ -63,11 +63,7 @@ async function save(): Promise<void> {
   <div v-loading="loading" class="page">
     <!-- 边界说明 -->
     <div class="card intro-card">
-      <h3 class="card-title">
-        支付管理<span class="sub"
-          >只管「钱怎么付」：支付时限、支付渠道、收款账户；计价规则请前往「计价管理」</span
-        >
-      </h3>
+      <h3 class="card-title">支付管理</h3>
     </div>
 
     <!-- 支付时限（本期可用） -->
