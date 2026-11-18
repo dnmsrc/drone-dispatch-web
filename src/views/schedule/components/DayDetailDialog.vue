@@ -200,30 +200,45 @@ function onSaveSlots(): void {
     </template>
 
     <template #footer>
-      <el-button @click="visible = false">关闭</el-button>
-      <template v-if="auth.isAdmin && cell">
-        <!-- 已有订单的日子不能停工：置灰并说明原因，后端同样会拒 -->
-        <el-tooltip
-          v-if="!cell.closed"
-          :content="cell.booked > 0 ? `该日已有 ${cell.booked} 单订单，不能设为休整日` : ''"
-          :disabled="cell.booked === 0"
-          placement="top"
-        >
-          <span class="ft-btn-wrap">
-            <el-button
-              type="warning"
-              :disabled="cell.booked > 0"
-              :loading="acting"
-              @click="emit('toggle-closed', true)"
-            >
-              设为休整日
-            </el-button>
-          </span>
-        </el-tooltip>
-        <el-button v-else type="success" :loading="acting" @click="emit('toggle-closed', false)">
-          恢复营业
-        </el-button>
-      </template>
+      <!-- 按钮区沿用 .pro-dialog-footer（右对齐 + 统一间隙），只调按钮语义与宽度，
+           不改弹窗外壳：日级动作是低频、可逆的状态切换，用 plain 弱化，
+           避免实心暖色抢走「保存时段」的主操作权重 -->
+      <div class="pro-dialog-footer">
+        <el-button class="ft-btn" @click="visible = false">关闭</el-button>
+        <template v-if="auth.isAdmin && cell">
+          <!-- 已有订单的日子不能停工：置灰并说明原因，后端同样会拒 -->
+          <el-tooltip
+            v-if="!cell.closed"
+            :content="cell.booked > 0 ? `该日已有 ${cell.booked} 单订单，不能设为休整日` : ''"
+            :disabled="cell.booked === 0"
+            placement="top"
+          >
+            <span class="ft-btn-wrap">
+              <el-button
+                class="ft-btn"
+                type="warning"
+                plain
+                :disabled="cell.booked > 0"
+                :loading="acting"
+                @click="emit('toggle-closed', true)"
+              >
+                设为休整日
+              </el-button>
+            </span>
+          </el-tooltip>
+          <!-- 休整日态下「恢复营业」是当日唯一可做的正向动作（正文提示也指向它），
+               保留实心 success 作为该态的主操作 -->
+          <el-button
+            v-else
+            class="ft-btn"
+            type="success"
+            :loading="acting"
+            @click="emit('toggle-closed', false)"
+          >
+            恢复营业
+          </el-button>
+        </template>
+      </div>
     </template>
   </el-dialog>
 </template>
@@ -319,5 +334,11 @@ function onSaveSlots(): void {
 
 .ft-btn-wrap {
   display: inline-block;
+}
+
+/* 弹窗尾部按钮等宽：两字「关闭」与五字「设为休整日」各随内容伸缩会形成参差感，
+   这里按较宽者实测宽度对齐轮廓，只统一宽度，配色/高度/圆角仍走 Element 原生 */
+.ft-btn {
+  min-width: 100px;
 }
 </style>
